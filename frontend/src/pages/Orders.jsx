@@ -29,6 +29,15 @@ const Orders = () => {
     loadData();
   }, []);
 
+  const fetchProducts = async () => {
+    try {
+      const productsRes = await productAPI.getAll();
+      setProducts(productsRes.data);
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement des produits:', error);
+    }
+  };
+
   const loadData = async () => {
     try {
       const [ordersRes, productsRes] = await Promise.all([
@@ -42,6 +51,11 @@ const Orders = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenModal = async () => {
+    setShowModal(true);
+    await fetchProducts();
   };
 
   const handleSubmit = async (e) => {
@@ -180,7 +194,7 @@ const Orders = () => {
           </p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={handleOpenModal}
           className="btn btn-primary flex items-center justify-center space-x-2"
         >
           <Plus className="w-5 h-5" />
