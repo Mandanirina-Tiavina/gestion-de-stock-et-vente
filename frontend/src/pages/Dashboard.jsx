@@ -111,13 +111,9 @@ const Dashboard = () => {
                   {stat.value}
                 </p>
               </div>
-              <div className={`${stat.color} p-3 rounded-lg`}>
+              <div className={`${stat.color} p-3 rounded-lg group-hover:scale-110 transition-transform`}>
                 <stat.icon className="w-6 h-6 text-white" />
               </div>
-            </div>
-            <div className="mt-4 flex items-center text-sm text-primary-600 dark:text-primary-400 group-hover:translate-x-1 transition-transform">
-              <span>Voir détails</span>
-              <ArrowRight className="w-4 h-4 ml-1" />
             </div>
           </Link>
         ))}

@@ -1,11 +1,24 @@
 import React from 'react';
-import { Menu, Moon, Sun, LogOut } from 'lucide-react';
+import { useLocation, NavLink } from 'react-router-dom';
+import { Menu, Moon, Sun, LogOut, Home, Package, ShoppingCart, TrendingUp, DollarSign, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const location = useLocation();
+
+  const navItems = [
+    { to: '/', icon: Home, label: 'Accueil' },
+    { to: '/stock', icon: Package, label: 'Stock' },
+    { to: '/commandes', icon: ShoppingCart, label: 'Commandes' },
+    { to: '/ventes', icon: TrendingUp, label: 'Ventes' },
+    { to: '/comptabilite', icon: DollarSign, label: 'Comptabilité' },
+    { to: '/parametres', icon: Settings, label: 'Paramètres' }
+  ];
+
+  const currentPage = navItems.find(item => item.to === location.pathname);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -20,15 +33,40 @@ const Header = ({ onMenuClick }) => {
             <Menu className="w-6 h-6" />
           </button>
 
-          {/* Logo et titre */}
+          {/* Logo et titre de la page */}
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">📦</span>
             </div>
-            <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
-              Stock & Ventes
-            </h1>
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+                {currentPage?.label || 'Stock & Ventes'}
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden md:block">
+                Gestion de stock et ventes
+              </p>
+            </div>
           </div>
+
+          {/* Navigation Desktop */}
+          <nav className="hidden lg:flex items-center space-x-1">
+            {navItems.map(({ to, icon: Icon, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`
+                }
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-sm font-medium">{label}</span>
+              </NavLink>
+            ))}
+          </nav>
 
           {/* Actions */}
           <div className="flex items-center space-x-2">
