@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, CheckCircle, XCircle, Clock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Search, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react';
 import { orderAPI, productAPI } from '../services/api';
 import Modal from '../components/Modal';
 import Loading from '../components/Loading';
@@ -15,13 +15,15 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [finalPrice, setFinalPrice] = useState('');
   const [formData, setFormData] = useState({
-    product_id: '',
     customer_name: '',
     customer_phone: '',
     customer_email: '',
     delivery_address: '',
     delivery_date: ''
   });
+  const [orderItems, setOrderItems] = useState([
+    { product_id: '', quantity: 1, custom_price: '' }
+  ]);
 
   useEffect(() => {
     loadData();
@@ -45,7 +47,25 @@ const Orders = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await orderAPI.create(formData);
+      const payloadItems = orderItems
+        .filter(item => item.product_id)
+        .map(item => ({
+          product_id: Number(item.product_id),
+          quantity: Number(item.quantity) || 1,
+          custom_price: item.custom_price !== '' ? Number(item.custom_price) : undefined
+        }));
+
+      if (payloadItems.length === 0) {
+        alert('Veuillez ajouter au moins un produit à la commande');
+        return;
+      }
+
+      const payload = {
+        ...formData,
+        items: payloadItems
+      };
+
+      await orderAPI.create(payload);
       await loadData();
       handleCloseModal();
     } catch (error) {
@@ -58,7 +78,11 @@ const Orders = () => {
     if (!selectedOrder) return;
 
     try {
-      if (status === 'vendu' && !finalPrice) {
+      const priceValue = status === 'vendu'
+        ? Number(finalPrice || selectedOrder?.total_amount || 0)
+        : null;
+
+      if (status === 'vendu' && !priceValue) {
         alert('Veuillez saisir le prix final');
         return;
       }
@@ -66,7 +90,7 @@ const Orders = () => {
       await orderAPI.updateStatus(
         selectedOrder.id,
         status,
-        status === 'vendu' ? parseFloat(finalPrice) : null
+        priceValue
       );
       await loadData();
       setShowStatusModal(false);
@@ -81,27 +105,65 @@ const Orders = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setFormData({
-      product_id: '',
       customer_name: '',
       customer_phone: '',
       customer_email: '',
       delivery_address: '',
       delivery_date: ''
     });
+    setOrderItems([{ product_id: '', quantity: 1, custom_price: '' }]);
   };
 
   const openStatusModal = (order) => {
     setSelectedOrder(order);
-    setFinalPrice(order.product_price || '');
+    setFinalPrice(
+      order.final_price?.toString() ||
+      order.total_amount?.toString() ||
+      ''
+    );
     setShowStatusModal(true);
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.product_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.items?.some(item =>
+        item.product_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     const matchesStatus = !filterStatus || order.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+
+  const computeDraftTotal = useMemo(() => {
+    return orderItems.reduce((sum, item) => {
+      if (!item.product_id) return sum;
+      const product = products.find(p => p.id === Number(item.product_id));
+      const unitPrice = item.custom_price !== ''
+        ? Number(item.custom_price)
+        : product?.price || 0;
+      const quantity = Number(item.quantity) || 0;
+      return sum + unitPrice * quantity;
+    }, 0);
+  }, [orderItems, products]);
+
+  const handleItemChange = (index, field, value) => {
+    setOrderItems(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        [field]: value
+      };
+      return updated;
+    });
+  };
+
+  const addOrderItem = () => {
+    setOrderItems(prev => [...prev, { product_id: '', quantity: 1, custom_price: '' }]);
+  };
+
+  const removeOrderItem = (index) => {
+    setOrderItems(prev => prev.length === 1 ? prev : prev.filter((_, idx) => idx !== index));
+  };
 
   if (loading) return <Loading />;
 
@@ -161,10 +223,15 @@ const Orders = () => {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
-                      {order.product_name}
+                      Commande #{order.id}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {order.category_name} • {order.color_name} • {order.size}
+                      {order.items?.length || 0} produit(s) • Créée le{' '}
+                      {new Date(order.created_at).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
                     </p>
                   </div>
                   <span
@@ -179,6 +246,34 @@ const Orders = () => {
                     {order.status === 'en_attente' ? 'En attente' : order.status === 'vendu' ? 'Vendu' : 'Annulé'}
                   </span>
                 </div>
+
+                {order.items?.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {order.items.map(item => (
+                      <div
+                        key={item.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border border-gray-100 dark:border-gray-700 rounded-lg p-3"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {item.product_name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Quantité: {item.quantity}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Prix unitaire: {item.unit_price} Ar
+                          </p>
+                          <p className="font-semibold text-gray-900 dark:text-white">
+                            Total: {item.total_price} Ar
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                   <div>
@@ -207,13 +302,20 @@ const Orders = () => {
                   </div>
                 </div>
 
-                {order.final_price && (
-                  <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <p className="text-sm text-green-800 dark:text-green-300">
-                      Prix final: <span className="font-bold">{order.final_price} Ar</span>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
+                      Total commande: <span className="font-bold">{order.total_amount || 0} Ar</span>
                     </p>
                   </div>
-                )}
+                  {order.final_price && (
+                    <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <p className="text-sm text-green-800 dark:text-green-300">
+                        Prix final: <span className="font-bold">{order.final_price} Ar</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {order.status === 'en_attente' && (
@@ -258,21 +360,99 @@ const Orders = () => {
         title="Nouvelle commande"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="label">Produit</label>
-            <select
-              value={formData.product_id}
-              onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
-              className="input"
-              required
+          <div className="space-y-4">
+            <label className="label">Produits</label>
+            {orderItems.map((item, index) => {
+              const selectedProduct = products.find(p => p.id === Number(item.product_id));
+              const unitPrice = item.custom_price !== ''
+                ? Number(item.custom_price)
+                : selectedProduct?.price || 0;
+              const total = unitPrice * (Number(item.quantity) || 0);
+
+              return (
+                <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      Produit #{index + 1}
+                    </p>
+                    {orderItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeOrderItem(index)}
+                        className="text-red-500 hover:text-red-600"
+                        aria-label="Supprimer le produit"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <select
+                    value={item.product_id}
+                    onChange={(e) => handleItemChange(index, 'product_id', e.target.value)}
+                    className="input"
+                    required
+                  >
+                    <option value="">Sélectionner un produit</option>
+                    {products.filter(p => p.quantity > 0 || p.id === Number(item.product_id)).map(product => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} - {product.color_name} - {product.size} (Stock: {product.quantity})
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                        Quantité
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                        className="input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                        Prix unitaire négocié (optionnel)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.custom_price}
+                        onChange={(e) => handleItemChange(index, 'custom_price', e.target.value)}
+                        className="input"
+                        placeholder={selectedProduct ? `${selectedProduct.price} Ar` : 'Prix négocié'}
+                      />
+                    </div>
+                  </div>
+
+                  {selectedProduct && (
+                    <div className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-3 text-sm text-gray-600 dark:text-gray-300">
+                      <p>Prix catalogue: <strong>{selectedProduct.price} Ar</strong></p>
+                      <p>Stock disponible: <strong>{selectedProduct.quantity}</strong></p>
+                      <p className="mt-2">Total pour ce produit: <strong>{total || 0} Ar</strong></p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={addOrderItem}
+              className="btn btn-secondary w-full"
             >
-              <option value="">Sélectionner un produit</option>
-              {products.filter(p => p.quantity > 0).map(product => (
-                <option key={product.id} value={product.id}>
-                  {product.name} - {product.color_name} - {product.size} (Stock: {product.quantity})
-                </option>
-              ))}
-            </select>
+              Ajouter un produit
+            </button>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-blue-800 dark:text-blue-300">
+              Total estimé de la commande : <strong>{computeDraftTotal} Ar</strong>
+            </div>
           </div>
 
           <div>
@@ -379,9 +559,9 @@ const Orders = () => {
               Cette action va :
             </p>
             <ul className="text-sm text-blue-700 dark:text-blue-400 mt-2 space-y-1 list-disc list-inside">
-              <li>Déduire 1 unité du stock</li>
-              <li>Ajouter la vente à l'historique</li>
-              <li>Enregistrer le revenu en comptabilité</li>
+              <li>Déduire le stock de chaque produit de la commande</li>
+              <li>Ajouter chaque produit dans l'historique des ventes</li>
+              <li>Enregistrer le revenu total en comptabilité</li>
             </ul>
           </div>
 
