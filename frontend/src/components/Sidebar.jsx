@@ -51,7 +51,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 pb-24">
           {navItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
@@ -71,8 +71,8 @@ const Sidebar = ({ isOpen, onClose }) => {
           ))}
         </nav>
 
-        {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
+        {/* Footer - Déconnexion */}
+        <div className="absolute bottom-20 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <button
             onClick={() => {
               logout();
