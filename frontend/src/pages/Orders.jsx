@@ -129,12 +129,22 @@ const Orders = () => {
 
   const handleEdit = async (order) => {
     setEditingOrder(order);
+    
+    // Formater la date correctement pour l'input type="date"
+    let formattedDate = '';
+    if (order.delivery_date) {
+      const date = new Date(order.delivery_date);
+      if (!isNaN(date.getTime())) {
+        formattedDate = date.toISOString().split('T')[0];
+      }
+    }
+    
     setFormData({
       customer_name: order.customer_name,
       customer_phone: order.customer_phone,
       customer_email: order.customer_email || '',
       delivery_address: order.delivery_address || '',
-      delivery_date: order.delivery_date ? order.delivery_date.split('T')[0] : ''
+      delivery_date: formattedDate
     });
     setOrderItems(order.items.map(item => ({
       product_id: item.product_id.toString(),
@@ -329,21 +339,18 @@ const Orders = () => {
                       {order.customer_phone}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Livraison</p>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {new Date(order.delivery_date).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {order.delivery_address}
-                    </p>
-                  </div>
+                  {order.delivery_date && (
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Livraison</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {new Date(order.delivery_date).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -555,13 +562,12 @@ const Orders = () => {
           </div>
 
           <div>
-            <label className="label">Date et heure de livraison</label>
+            <label className="label">Date et heure de livraison (optionnel)</label>
             <input
               type="datetime-local"
               value={formData.delivery_date}
               onChange={(e) => setFormData({ ...formData, delivery_date: e.target.value })}
               className="input"
-              required
             />
           </div>
 
