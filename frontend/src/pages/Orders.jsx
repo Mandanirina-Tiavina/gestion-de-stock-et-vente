@@ -348,16 +348,16 @@ const Orders = () => {
                   </div>
                   {order.delivery_date && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Livraison</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Livraison prévue</p>
                       <p className="font-medium text-gray-900 dark:text-white">
                         {new Date(order.delivery_date).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'long',
+                          day: '2-digit',
+                          month: 'short',
                           year: 'numeric',
                         })}
                       </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(order.delivery_date).toLocaleTimeString('fr-FR', {
+                      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                        🕐 {new Date(order.delivery_date).toLocaleTimeString('fr-FR', {
                           hour: '2-digit',
                           minute: '2-digit'
                         })}
