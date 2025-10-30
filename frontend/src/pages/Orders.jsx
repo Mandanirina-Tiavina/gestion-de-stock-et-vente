@@ -79,7 +79,7 @@ const Orders = () => {
 
       const payload = {
         ...formData,
-        delivery_date: formData.delivery_date ? new Date(formData.delivery_date).toISOString() : null,
+        delivery_date: formData.delivery_date || null,
         items: payloadItems
       };
 
@@ -354,6 +354,12 @@ const Orders = () => {
                           day: 'numeric',
                           month: 'long',
                           year: 'numeric',
+                        })}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(order.delivery_date).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit'
                         })}
                       </p>
                     </div>
