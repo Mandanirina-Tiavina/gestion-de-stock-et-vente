@@ -171,3 +171,99 @@ export const updatePreferences = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+
+// Changer le mot de passe
+export const changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  try {
+    // Récupérer l'utilisateur
+    const result = await pool.query(
+      'SELECT * FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+    }
+
+    const user = result.rows[0];
+
+    // Vérifier le mot de passe actuel
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Mot de passe actuel incorrect.' });
+    }
+
+    // Valider le nouveau mot de passe
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 6 caractères.' });
+    }
+
+    // Hasher le nouveau mot de passe
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    // Mettre à jour le mot de passe
+    await pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newPasswordHash, req.user.id]
+    );
+
+    res.json({ message: 'Mot de passe modifié avec succès' });
+  } catch (error) {
+    console.error('Erreur lors du changement de mot de passe:', error);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+// Demander une réinitialisation de mot de passe (génère un token)
+export const requestPasswordReset = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Vérifier si l'utilisateur existe
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      // Ne pas révéler si l'email existe ou non pour des raisons de sécurité
+      return res.json({ message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' });
+    }
+
+    const user = result.rows[0];
+
+    // Générer un token unique
+    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const expiresAt = new Date(Date.now() + 3600000); // 1 heure
+
+    // Supprimer les anciens tokens de réinitialisation
+    await pool.query(
+      'DELETE FROM verification_tokens WHERE user_id = $1 AND type = $2',
+      [user.id, 'password_reset']
+    );
+
+    // Créer un nouveau token
+    await pool.query(
+      'INSERT INTO verification_tokens (user_id, token, type, expires_at) VALUES ($1, $2, $3, $4)',
+      [user.id, token, 'password_reset', expiresAt]
+    );
+
+    // TODO: Envoyer l'email avec le lien de réinitialisation
+    // Pour l'instant, on retourne juste le token (à enlever en production)
+    console.log(`Token de réinitialisation pour ${email}: ${token}`);
+    console.log(`Lien: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`);
+
+    res.json({ 
+      message: 'Si cet email existe, un lien de réinitialisation a été envoyé.',
+      // À enlever en production:
+      token: process.env.NODE_ENV === 'development' ? token : undefined
+    });
+  } catch (error) {
+    console.error('Erreur lors de la demande de réinitialisation:', error);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};

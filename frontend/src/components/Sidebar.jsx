@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { X, Home, Package, ShoppingCart, TrendingUp, DollarSign, Settings, LogOut } from 'lucide-react';
+import { X, Home, Package, ShoppingCart, TrendingUp, DollarSign, Settings, User, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -12,7 +12,8 @@ const Sidebar = ({ isOpen, onClose }) => {
     { to: '/commandes', icon: ShoppingCart, label: 'Commandes' },
     { to: '/ventes', icon: TrendingUp, label: 'Historique des ventes' },
     { to: '/comptabilite', icon: DollarSign, label: 'Comptabilité' },
-    { to: '/parametres', icon: Settings, label: 'Paramètres' }
+    { to: '/parametres', icon: Settings, label: 'Paramètres' },
+    { to: '/profil', icon: User, label: 'Mon Profil' }
   ];
 
   return (

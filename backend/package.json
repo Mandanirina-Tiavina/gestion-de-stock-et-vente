@@ -11,7 +11,8 @@
     "migrate:multi": "node src/config/migrate-multi-products.js",
     "migrate:created-by": "node src/config/add-created-by.js",
     "reset:orders": "node src/config/reset-orders.js",
-    "reset:data": "node src/config/reset-data.js"
+    "reset:data": "node src/config/reset-data.js",
+    "reset:users": "node src/config/reset-users.js"
   },
   "keywords": ["stock", "ventes", "gestion"],
   "author": "",

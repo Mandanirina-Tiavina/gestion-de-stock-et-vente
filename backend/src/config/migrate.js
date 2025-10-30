@@ -17,11 +17,25 @@ const createTables = async () => {
         email VARCHAR(100) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(20) DEFAULT 'vendeur' CHECK (role IN ('admin', 'vendeur', 'comptable')),
+        email_verified BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('✅ Table users créée');
+
+    // Table des tokens de vérification et réinitialisation
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS verification_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        type VARCHAR(20) NOT NULL CHECK (type IN ('email_verification', 'password_reset')),
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Table verification_tokens créée');
 
     // Table des catégories
     await client.query(`

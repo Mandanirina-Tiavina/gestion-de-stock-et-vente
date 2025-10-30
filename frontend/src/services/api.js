@@ -79,4 +79,12 @@ export const categoryAPI = {
   createColor: (data) => api.post('/categories/colors', data)
 };
 
+// API Authentification
+export const authAPI = {
+  changePassword: (data) => api.post('/auth/change-password', data),
+  requestPasswordReset: (email) => api.post('/auth/request-password-reset', { email }),
+  resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
+  verifyEmail: (token) => api.post('/auth/verify-email', { token })
+};
+
 export default api;

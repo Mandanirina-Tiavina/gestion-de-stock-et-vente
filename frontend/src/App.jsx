@@ -14,6 +14,7 @@ import Orders from './pages/Orders';
 import Sales from './pages/Sales';
 import Accounting from './pages/Accounting';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 
 // Route protégée
 const ProtectedRoute = ({ children }) => {
@@ -74,6 +75,7 @@ function AppRoutes() {
           <Route path="ventes" element={<Sales />} />
           <Route path="comptabilite" element={<Accounting />} />
           <Route path="parametres" element={<Settings />} />
+          <Route path="profil" element={<Profile />} />
         </Route>
 
         {/* Route par défaut */}
