@@ -125,7 +125,7 @@ export const createOrder = async (req, res) => {
     const orderId = orderResult.rows[0].id;
     let totalAmount = 0;
 
-    // Ajouter les produits à la commande
+    // Ajouter les produits à la commande et déduire du stock
     for (const item of items) {
       const productResult = await client.query(`
         SELECT p.id, p.name, p.price, c.name as category_name
@@ -146,6 +146,13 @@ export const createOrder = async (req, res) => {
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [orderId, product.id, product.name, product.category_name, item.quantity, unitPrice, totalPrice]);
+
+      // NOUVEAU: Déduire du stock dès la création de la commande
+      await client.query(`
+        UPDATE products 
+        SET quantity = quantity - $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `, [item.quantity, product.id]);
     }
 
     // Mettre à jour le montant total de la commande
@@ -207,20 +214,8 @@ export const updateOrderStatus = async (req, res) => {
         SELECT * FROM order_items WHERE order_id = $1
       `, [id]);
 
-      // Vérifier le stock pour chaque produit
-      for (const item of itemsResult.rows) {
-        const productCheck = await client.query(
-          'SELECT quantity FROM products WHERE id = $1',
-          [item.product_id]
-        );
-
-        if (productCheck.rows.length > 0 && productCheck.rows[0].quantity < item.quantity) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ 
-            error: `Stock insuffisant pour ${item.product_name}` 
-          });
-        }
-      }
+      // NOUVEAU: Le stock a déjà été déduit lors de la création
+      // On enregistre juste la vente et met à jour le prix final
 
       // Mettre à jour la commande
       await client.query(`
@@ -229,15 +224,8 @@ export const updateOrderStatus = async (req, res) => {
         WHERE id = $3
       `, [status, priceToUse, id]);
 
-      // Déduire du stock et créer les ventes
+      // Créer les ventes (le stock est déjà déduit)
       for (const item of itemsResult.rows) {
-        // Déduire du stock
-        await client.query(`
-          UPDATE products 
-          SET quantity = quantity - $1, updated_at = CURRENT_TIMESTAMP
-          WHERE id = $2
-        `, [item.quantity, item.product_id]);
-
         // Ajouter dans l'historique des ventes
         await client.query(`
           INSERT INTO sales (
@@ -248,12 +236,6 @@ export const updateOrderStatus = async (req, res) => {
         `, [id, item.product_id, item.product_name, item.category_name, order.customer_name, item.total_price, req.user.id]);
       }
 
-      // Ajouter dans les transactions comptables
-      await client.query(`
-        INSERT INTO transactions (type, category, amount, description, created_by)
-        VALUES ('revenu', 'vente', $1, $2, $3)
-      `, [priceToUse, `Vente commande #${id} - ${order.customer_name}`, req.user.id]);
-
       await client.query('COMMIT');
 
       res.json({ 
@@ -261,8 +243,40 @@ export const updateOrderStatus = async (req, res) => {
         status: 'vendu',
         final_price: priceToUse
       });
+    }
+    
+    // Si le statut passe à "annule"
+    else if (status === 'annule' && order.status !== 'annule') {
+      // Récupérer les produits de la commande
+      const itemsResult = await client.query(`
+        SELECT * FROM order_items WHERE order_id = $1
+      `, [id]);
 
-    } else {
+      // NOUVEAU: Remettre le stock (annulation = remboursement stock)
+      for (const item of itemsResult.rows) {
+        await client.query(`
+          UPDATE products 
+          SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `, [item.quantity, item.product_id]);
+      }
+
+      // Mettre à jour le statut
+      await client.query(`
+        UPDATE orders 
+        SET status = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `, [status, id]);
+
+      await client.query('COMMIT');
+
+      res.json({ 
+        message: 'Commande annulée et stock remis',
+        status 
+      });
+    }
+    
+    else {
       // Simple mise à jour du statut
       await client.query(`
         UPDATE orders 
@@ -315,6 +329,19 @@ export const updateOrder = async (req, res) => {
       return res.status(400).json({ error: 'Seules les commandes en cours ou en attente peuvent être modifiées.' });
     }
 
+    // NOUVEAU: Récupérer les anciens items pour remettre le stock
+    const oldItemsResult = await client.query('SELECT * FROM order_items WHERE order_id = $1', [id]);
+    const oldItems = oldItemsResult.rows;
+
+    // Remettre le stock des anciens produits
+    for (const oldItem of oldItems) {
+      await client.query(`
+        UPDATE products 
+        SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `, [oldItem.quantity, oldItem.product_id]);
+    }
+
     // Supprimer les anciens items
     await client.query('DELETE FROM order_items WHERE order_id = $1', [id]);
 
@@ -323,7 +350,7 @@ export const updateOrder = async (req, res) => {
 
     for (const item of items) {
       const productResult = await client.query(
-        'SELECT id, name, price FROM products WHERE id = $1',
+        'SELECT id, name, price, quantity FROM products WHERE id = $1',
         [item.product_id]
       );
 
@@ -333,6 +360,15 @@ export const updateOrder = async (req, res) => {
       }
 
       const product = productResult.rows[0];
+      
+      // Vérifier le stock disponible
+      if (product.quantity < item.quantity) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Stock insuffisant pour ${product.name}. Disponible: ${product.quantity}` 
+        });
+      }
+
       const unitPrice = item.custom_price !== undefined && item.custom_price !== null 
         ? item.custom_price 
         : product.price;
@@ -353,6 +389,13 @@ export const updateOrder = async (req, res) => {
         INSERT INTO order_items (order_id, product_id, product_name, category_name, quantity, unit_price, total_price)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [id, item.product_id, product.name, categoryName, item.quantity, unitPrice, itemTotal]);
+
+      // NOUVEAU: Déduire le stock des nouveaux produits
+      await client.query(`
+        UPDATE products 
+        SET quantity = quantity - $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `, [item.quantity, item.product_id]);
     }
 
     // Mettre à jour la commande
