@@ -362,37 +362,37 @@ const Orders = () => {
                 </div>
               </div>
 
-              {order.status === 'en_cours' && (
-                <div className="flex md:flex-col gap-2">
+              {(order.status === 'en_cours' || order.status === 'en_attente') && (
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={() => handleEdit(order)}
-                    className="flex-1 btn btn-secondary flex items-center justify-center space-x-2"
+                    className="btn btn-secondary flex items-center justify-center space-x-2"
                   >
                     <Edit2 className="w-4 h-4" />
                     <span>Modifier</span>
                   </button>
-                </div>
-              )}
-
-              {order.status === 'en_attente' && (
-                <div className="flex md:flex-col gap-2">
-                  <button
-                    onClick={() => openStatusModal(order)}
-                    className="flex-1 btn btn-success flex items-center justify-center space-x-2"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    <span>Vendu</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      handleStatusChange('annule');
-                    }}
-                    className="flex-1 btn btn-danger flex items-center justify-center space-x-2"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    <span>Annuler</span>
-                  </button>
+                  
+                  {order.status === 'en_attente' && (
+                    <>
+                      <button
+                        onClick={() => openStatusModal(order)}
+                        className="btn btn-success flex items-center justify-center space-x-2"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Vendu</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          handleStatusChange('annule');
+                        }}
+                        className="btn btn-danger flex items-center justify-center space-x-2"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Annuler</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

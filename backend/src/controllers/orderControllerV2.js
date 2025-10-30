@@ -310,9 +310,9 @@ export const updateOrder = async (req, res) => {
 
     const order = orderCheck.rows[0];
 
-    if (order.status !== 'en_cours') {
+    if (order.status !== 'en_cours' && order.status !== 'en_attente') {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Seules les commandes en cours peuvent être modifiées.' });
+      return res.status(400).json({ error: 'Seules les commandes en cours ou en attente peuvent être modifiées.' });
     }
 
     // Supprimer les anciens items
