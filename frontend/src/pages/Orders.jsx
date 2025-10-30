@@ -130,12 +130,18 @@ const Orders = () => {
   const handleEdit = async (order) => {
     setEditingOrder(order);
     
-    // Formater la date correctement pour l'input type="date"
+    // Formater la date correctement pour l'input type="datetime-local"
     let formattedDate = '';
     if (order.delivery_date) {
       const date = new Date(order.delivery_date);
       if (!isNaN(date.getTime())) {
-        formattedDate = date.toISOString().split('T')[0];
+        // Format: YYYY-MM-DDTHH:MM (requis pour datetime-local)
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`;
       }
     }
     
