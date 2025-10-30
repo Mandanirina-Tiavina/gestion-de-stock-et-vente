@@ -206,10 +206,10 @@ const Sales = () => {
                   </td>
                   <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">
                     {sale.product_name}
-                    {(sale.size || sale.color) && (
+                    {((sale.size && sale.size !== '') || (sale.color && sale.color !== '')) && (
                       <span className="text-gray-500 dark:text-gray-400">
                         {' - '}
-                        {[sale.size, sale.color].filter(Boolean).join(' - ')}
+                        {[sale.size, sale.color].filter(v => v && v !== '').join(' - ')}
                       </span>
                     )}
                   </td>

@@ -266,22 +266,27 @@ export const updateOrderStatus = async (req, res) => {
       }
 
       // NOUVEAU: Créer une transaction comptable pour la vente
-      console.log('💰 Création transaction comptable:', {
-        type: 'revenu',
-        category: 'Vente',
-        amount: priceToUse,
-        description: `Vente commande #${id} - ${order.customer_name}`,
-        created_by: req.user.id
-      });
-      
-      await client.query(`
-        INSERT INTO transactions (
-          type, category, amount, description, transaction_date, created_by
-        )
-        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
-      `, ['revenu', 'Vente', priceToUse, `Vente commande #${id} - ${order.customer_name}`, req.user.id]);
+      try {
+        console.log('💰 Création transaction comptable:', {
+          type: 'revenu',
+          category: 'Vente',
+          amount: priceToUse,
+          description: `Vente commande #${id} - ${order.customer_name}`,
+          created_by: req.user.id
+        });
+        
+        await client.query(`
+          INSERT INTO transactions (
+            type, category, amount, description, transaction_date, created_by
+          )
+          VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
+        `, ['revenu', 'Vente', priceToUse, `Vente commande #${id} - ${order.customer_name}`, req.user.id]);
 
-      console.log('✅ Transaction comptable créée avec succès');
+        console.log('✅ Transaction comptable créée avec succès');
+      } catch (transError) {
+        console.error('⚠️ Erreur création transaction comptable (non bloquant):', transError);
+        // Ne pas bloquer la vente si la transaction comptable échoue
+      }
 
       await client.query('COMMIT');
 
