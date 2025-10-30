@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, Calendar, Filter } from 'lucide-react';
 import { salesAPI } from '../services/api';
 import Loading from '../components/Loading';
+import { formatPrice } from '../utils/formatPrice';
 
 const Sales = () => {
   const [sales, setSales] = useState([]);
@@ -65,7 +66,7 @@ const Sales = () => {
             <h3 className="text-sm font-medium opacity-90">Total des ventes</h3>
             <TrendingUp className="w-5 h-5" />
           </div>
-          <p className="text-3xl font-bold">{stats?.total.toFixed(2)} Ar</p>
+          <p className="text-3xl font-bold">{formatPrice(stats?.total)}</p>
           <p className="text-sm opacity-90 mt-1">{stats?.count} vente(s)</p>
         </div>
 
@@ -74,7 +75,7 @@ const Sales = () => {
             <h3 className="text-sm font-medium opacity-90">Ventes du mois</h3>
             <Calendar className="w-5 h-5" />
           </div>
-          <p className="text-3xl font-bold">{stats?.monthTotal.toFixed(2)} Ar</p>
+          <p className="text-3xl font-bold">{formatPrice(stats?.monthTotal)}</p>
           <p className="text-sm opacity-90 mt-1">Mois en cours</p>
         </div>
 
@@ -84,7 +85,7 @@ const Sales = () => {
             <TrendingUp className="w-5 h-5" />
           </div>
           <p className="text-3xl font-bold">
-            {stats?.count > 0 ? (stats.total / stats.count).toFixed(2) : '0.00'} Ar
+            {stats?.count > 0 ? formatPrice(stats.total / stats.count) : '0 Ar'}
           </p>
           <p className="text-sm opacity-90 mt-1">Prix moyen</p>
         </div>
@@ -118,7 +119,7 @@ const Sales = () => {
                   </div>
                 </div>
                 <span className="ml-4 font-bold text-gray-900 dark:text-white">
-                  {parseFloat(cat.total).toFixed(2)} Ar
+                  {formatPrice(parseFloat(cat.total))}
                 </span>
               </div>
             ))}
@@ -213,7 +214,7 @@ const Sales = () => {
                     {sale.customer_name}
                   </td>
                   <td className="py-3 px-4 text-sm font-bold text-right text-green-600 dark:text-green-400">
-                    {sale.final_price} Ar
+                    {formatPrice(sale.final_price)}
                   </td>
                 </tr>
               ))}

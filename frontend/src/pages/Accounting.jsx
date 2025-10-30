@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Loading from '../components/Loading';
+import { formatPrice } from '../utils/formatPrice';
 
 const Accounting = () => {
   const toast = useToast();
@@ -115,7 +116,7 @@ const Accounting = () => {
             <h3 className="text-sm font-medium opacity-90">Total Revenus</h3>
             <TrendingUp className="w-5 h-5" />
           </div>
-          <p className="text-3xl font-bold">{summary?.totalRevenus.toFixed(2)} Ar</p>
+          <p className="text-3xl font-bold">{formatPrice(summary?.totalRevenus)}</p>
           <p className="text-sm opacity-90 mt-1">Toutes sources</p>
         </div>
 
@@ -124,7 +125,7 @@ const Accounting = () => {
             <h3 className="text-sm font-medium opacity-90">Total Dépenses</h3>
             <TrendingDown className="w-5 h-5" />
           </div>
-          <p className="text-3xl font-bold">{summary?.totalDepenses.toFixed(2)} Ar</p>
+          <p className="text-3xl font-bold">{formatPrice(summary?.totalDepenses)}</p>
           <p className="text-sm opacity-90 mt-1">Toutes catégories</p>
         </div>
 
@@ -137,7 +138,7 @@ const Accounting = () => {
             <h3 className="text-sm font-medium opacity-90">Solde Net</h3>
             <DollarSign className="w-5 h-5" />
           </div>
-          <p className="text-3xl font-bold">{summary?.solde.toFixed(2)} Ar</p>
+          <p className="text-3xl font-bold">{formatPrice(summary?.solde)}</p>
           <p className="text-sm opacity-90 mt-1">Revenus - Dépenses</p>
         </div>
       </div>
@@ -149,7 +150,7 @@ const Accounting = () => {
             Revenus du mois
           </h3>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {summary?.monthRevenus.toFixed(2)} Ar
+            {formatPrice(summary?.monthRevenus)}
           </p>
         </div>
 
@@ -158,7 +159,7 @@ const Accounting = () => {
             Dépenses du mois
           </h3>
           <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-            {summary?.monthDepenses.toFixed(2)} Ar
+            {formatPrice(summary?.monthDepenses)}
           </p>
         </div>
 
@@ -171,7 +172,7 @@ const Accounting = () => {
               ? 'text-purple-600 dark:text-purple-400' 
               : 'text-orange-600 dark:text-orange-400'
           }`}>
-            {summary?.monthSolde.toFixed(2)} Ar
+            {formatPrice(summary?.monthSolde)}
           </p>
         </div>
       </div>
@@ -227,7 +228,7 @@ const Accounting = () => {
                         ? 'text-green-600 dark:text-green-400'
                         : 'text-red-600 dark:text-red-400'
                     }`}>
-                      {transaction.type === 'revenu' ? '+' : '-'}{transaction.amount} Ar
+                      {transaction.type === 'revenu' ? '+' : '-'}{formatPrice(transaction.amount)}
                     </p>
                   </div>
                   <div className="flex items-center justify-between mt-2">

@@ -246,6 +246,14 @@ export const updateOrderStatus = async (req, res) => {
         `, [id, item.product_id, item.product_name, item.category_name, order.customer_name, itemFinalPrice, req.user.id]);
       }
 
+      // NOUVEAU: Créer une transaction comptable pour la vente
+      await client.query(`
+        INSERT INTO transactions (
+          type, category, amount, description, transaction_date, created_by
+        )
+        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
+      `, ['revenu', 'Vente', priceToUse, `Vente commande #${id} - ${order.customer_name}`, req.user.id]);
+
       await client.query('COMMIT');
 
       res.json({ 

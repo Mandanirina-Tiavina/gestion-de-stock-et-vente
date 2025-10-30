@@ -1,10 +1,9 @@
 /**
  * Formate un prix en Ariary avec K (milliers) et M (millions)
  * @param {number} price - Le prix à formater
- * @param {boolean} showDecimals - Afficher les décimales (défaut: true)
- * @returns {string} - Prix formaté (ex: "1.5K Ar", "2.3M Ar")
+ * @returns {string} - Prix formaté (ex: "1.5K Ar", "2M Ar")
  */
-export const formatPrice = (price, showDecimals = true) => {
+export const formatPrice = (price) => {
   if (!price || price === 0) return '0 Ar';
   
   const absPrice = Math.abs(price);
@@ -12,21 +11,21 @@ export const formatPrice = (price, showDecimals = true) => {
   // Millions (>= 1 000 000)
   if (absPrice >= 1000000) {
     const millions = price / 1000000;
-    return showDecimals 
-      ? `${millions.toFixed(1)}M Ar`
-      : `${Math.round(millions)}M Ar`;
+    // Enlever le .0 si c'est un nombre entier
+    const formatted = millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1);
+    return `${formatted}M Ar`;
   }
   
   // Milliers (>= 1 000)
   if (absPrice >= 1000) {
     const thousands = price / 1000;
-    return showDecimals 
-      ? `${thousands.toFixed(1)}K Ar`
-      : `${Math.round(thousands)}K Ar`;
+    // Enlever le .0 si c'est un nombre entier
+    const formatted = thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1);
+    return `${formatted}K Ar`;
   }
   
   // Moins de 1000
-  return `${price} Ar`;
+  return `${Math.round(price)} Ar`;
 };
 
 /**
