@@ -84,14 +84,13 @@ const Header = ({ onMenuClick }) => {
               )}
             </button>
 
-            {/* Bouton Profil - Mobile: juste icône, Desktop: icône + nom */}
+            {/* Bouton Profil - Mobile: juste nom, Desktop: nom complet */}
             <button
               onClick={() => navigate('/profil')}
-              className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
+              className="flex items-center px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
               title="Mon profil"
             >
-              <User className="w-5 h-5" />
-              <span className="hidden sm:inline text-sm">{user?.username}</span>
+              <span className="text-sm">{user?.username}</span>
             </button>
 
             {/* Déconnexion (desktop uniquement) */}
