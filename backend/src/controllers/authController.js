@@ -253,21 +253,23 @@ export const requestPasswordReset = async (req, res) => {
       [user.id, code, 'password_reset', expiresAt]
     );
 
-    // Envoyer l'email avec le code
-    try {
-      await sendPasswordResetEmail(email, code);
-      console.log(`✅ Email de réinitialisation envoyé à ${email}`);
-      console.log(`🔑 Code de réinitialisation: ${code}`);
-    } catch (emailError) {
-      console.error('❌ Erreur lors de l\'envoi de l\'email:', emailError);
-      // On continue quand même pour ne pas révéler si l'email existe
-    }
-
+    // En développement, retourner le code immédiatement (pas d'attente email)
+    // En production, l'email sera envoyé de manière asynchrone
     res.json({ 
       message: 'Si cet email existe, un code de réinitialisation a été envoyé par email.',
-      // En développement, on retourne aussi le code pour faciliter les tests
+      // SÉCURITÉ: Le code n'est visible qu'en développement
       code: process.env.NODE_ENV === 'development' ? code : undefined
     });
+
+    // Envoyer l'email de manière asynchrone (ne bloque pas la réponse)
+    sendPasswordResetEmail(email, code)
+      .then(() => {
+        console.log(`✅ Email de réinitialisation envoyé à ${email}`);
+        console.log(`🔑 Code de réinitialisation: ${code}`);
+      })
+      .catch((emailError) => {
+        console.error('❌ Erreur lors de l\'envoi de l\'email:', emailError);
+      });
   } catch (error) {
     console.error('Erreur lors de la demande de réinitialisation:', error);
     res.status(500).json({ error: 'Erreur serveur.' });
