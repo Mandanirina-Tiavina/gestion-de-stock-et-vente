@@ -87,7 +87,18 @@ export const createOrder = async (req, res) => {
     delivery_date 
   } = req.body;
 
-  const normalizedDeliveryDate = delivery_date ? new Date(delivery_date) : null;
+  // Normaliser la date : null si vide ou invalide
+  let normalizedDeliveryDate = null;
+  if (delivery_date && delivery_date.trim() !== '') {
+    try {
+      normalizedDeliveryDate = new Date(delivery_date);
+      if (isNaN(normalizedDeliveryDate.getTime())) {
+        normalizedDeliveryDate = null;
+      }
+    } catch (e) {
+      normalizedDeliveryDate = null;
+    }
+  }
 
   const client = await pool.connect();
 
@@ -308,7 +319,18 @@ export const updateOrder = async (req, res) => {
   const { id } = req.params;
   const { customer_name, customer_phone, customer_email, delivery_address, delivery_date, items } = req.body;
 
-  const normalizedDeliveryDate = delivery_date ? new Date(delivery_date) : null;
+  // Normaliser la date : null si vide ou invalide
+  let normalizedDeliveryDate = null;
+  if (delivery_date && delivery_date.trim() !== '') {
+    try {
+      normalizedDeliveryDate = new Date(delivery_date);
+      if (isNaN(normalizedDeliveryDate.getTime())) {
+        normalizedDeliveryDate = null;
+      }
+    } catch (e) {
+      normalizedDeliveryDate = null;
+    }
+  }
 
   const client = await pool.connect();
   
