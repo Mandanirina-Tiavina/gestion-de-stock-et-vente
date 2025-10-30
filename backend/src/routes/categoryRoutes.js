@@ -5,7 +5,8 @@ import {
   updateCategory,
   deleteCategory,
   getAllColors,
-  createColor
+  createColor,
+  deleteColor
 } from '../controllers/categoryController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -23,5 +24,6 @@ router.delete('/:id', deleteCategory);
 // Routes couleurs
 router.get('/colors', getAllColors);
 router.post('/colors', createColor);
+router.delete('/colors/:id', deleteColor);
 
 export default router;

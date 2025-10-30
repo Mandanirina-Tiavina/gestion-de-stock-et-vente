@@ -55,8 +55,15 @@ const Profile = () => {
   const handleRequestPasswordReset = async () => {
     setLoading(true);
     try {
-      await authAPI.requestPasswordReset(user.email);
-      toast.success('Un email de réinitialisation a été envoyé à votre adresse');
+      const response = await authAPI.requestPasswordReset(user.email);
+      
+      // En développement, afficher le token
+      if (response.data.token) {
+        console.log('🔑 Token de réinitialisation:', response.data.token);
+        toast.success('Email envoyé ! En dev: vérifiez la console pour le token');
+      } else {
+        toast.success('Un email de réinitialisation a été envoyé à votre adresse');
+      }
     } catch (error) {
       console.error('Erreur lors de la demande de réinitialisation:', error);
       toast.error('Erreur lors de l\'envoi de l\'email');
