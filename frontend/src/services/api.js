@@ -76,7 +76,8 @@ export const categoryAPI = {
   update: (id, data) => api.put(`/categories/${id}`, data),
   delete: (id) => api.delete(`/categories/${id}`),
   getColors: () => api.get('/categories/colors'),
-  createColor: (data) => api.post('/categories/colors', data)
+  createColor: (data) => api.post('/categories/colors', data),
+  deleteColor: (id) => api.delete(`/categories/colors/${id}`)
 };
 
 // API Authentification

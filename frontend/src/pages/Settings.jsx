@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Palette, Tag } from 'lucide-react';
-import { categoryAPI, colorAPI } from '../services/api';
+import { categoryAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -35,7 +35,7 @@ const Settings = () => {
     try {
       const [categoriesRes, colorsRes] = await Promise.all([
         categoryAPI.getAll(),
-        colorAPI.getColors()
+        categoryAPI.getColors()
       ]);
       setCategories(categoriesRes.data);
       setColors(colorsRes.data);
@@ -66,7 +66,7 @@ const Settings = () => {
   const handleColorSubmit = async (e) => {
     e.preventDefault();
     try {
-      await colorAPI.create(colorForm);
+      await categoryAPI.createColor(colorForm);
       await loadData();
       toast.success('Couleur ajoutée avec succès');
       handleCloseColorModal();
@@ -88,7 +88,7 @@ const Settings = () => {
       if (deleteType === 'category') {
         await categoryAPI.delete(itemToDelete.id);
       } else {
-        await colorAPI.delete(itemToDelete.id);
+        await categoryAPI.deleteColor(itemToDelete.id);
       }
       await loadData();
       toast.success(`${deleteType === 'category' ? 'Catégorie' : 'Couleur'} supprimée avec succès`);

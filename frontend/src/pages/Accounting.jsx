@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Trash2 } from 'lucide-react';
-import { transactionAPI } from '../services/api';
+import { accountingAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -30,8 +30,8 @@ const Accounting = () => {
   const loadData = async () => {
     try {
       const [transactionsRes, summaryRes] = await Promise.all([
-        transactionAPI.getTransactions({ type: filterType }),
-        transactionAPI.getSummary()
+        accountingAPI.getTransactions({ type: filterType }),
+        accountingAPI.getSummary()
       ]);
       setTransactions(transactionsRes.data);
       setSummary(summaryRes.data);
@@ -45,7 +45,7 @@ const Accounting = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await transactionAPI.createTransaction(formData);
+      await accountingAPI.createTransaction(formData);
       await loadData();
       toast.success('Transaction ajoutée avec succès');
       handleCloseModal();
@@ -63,7 +63,7 @@ const Accounting = () => {
   const handleDeleteConfirm = async () => {
     if (!transactionToDelete) return;
     try {
-      await transactionAPI.delete(transactionToDelete.id);
+      await accountingAPI.deleteTransaction(transactionToDelete.id);
       await loadData();
       toast.success('Transaction supprimée avec succès');
     } catch (error) {
