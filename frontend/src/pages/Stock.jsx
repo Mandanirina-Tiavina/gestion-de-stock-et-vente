@@ -232,7 +232,7 @@ const Stock = () => {
                 onClick={() => handleEdit(product)}
                 className="flex-1 btn btn-secondary flex items-center justify-center space-x-2"
               >
-                <Edit className="w-4 h-4" />
+                <Edit2 className="w-4 h-4" />
                 <span>Modifier</span>
               </button>
               <button
