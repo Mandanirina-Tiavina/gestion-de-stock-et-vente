@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, AlertCircle } from 'lucide-react';
-import { productAPI, categoryAPI } from '../services/api';
+import { Plus, Search, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { productAPI, categoryAPI, colorAPI } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Loading from '../components/Loading';
 
 const Stock = () => {
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [colors, setColors] = useState([]);
@@ -12,6 +15,8 @@ const Stock = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -53,21 +58,30 @@ const Stock = () => {
         await productAPI.create(formData);
       }
       await loadData();
+      toast.success(editingProduct ? 'Produit modifié avec succès' : 'Produit ajouté avec succès');
       handleCloseModal();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      alert('Erreur lors de la sauvegarde du produit');
+      toast.error('Erreur lors de la sauvegarde du produit');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) return;
+  const handleDeleteClick = (product) => {
+    setProductToDelete(product);
+    setShowConfirmDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
     try {
-      await productAPI.delete(id);
+      await productAPI.delete(productToDelete.id);
       await loadData();
+      toast.success('Produit supprimé avec succès');
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
-      alert('Erreur lors de la suppression du produit');
+      toast.error('Erreur lors de la suppression du produit');
+    } finally {
+      setProductToDelete(null);
     }
   };
 
@@ -222,7 +236,7 @@ const Stock = () => {
                 <span>Modifier</span>
               </button>
               <button
-                onClick={() => handleDelete(product.id)}
+                onClick={() => handleDeleteClick(product)}
                 className="btn btn-danger flex items-center justify-center"
               >
                 <Trash2 className="w-4 h-4" />
@@ -353,6 +367,17 @@ const Stock = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Dialog de confirmation */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer le produit"
+        message={`Êtes-vous sûr de vouloir supprimer "${productToDelete?.name}" ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        type="danger"
+      />
     </div>
   );
 };

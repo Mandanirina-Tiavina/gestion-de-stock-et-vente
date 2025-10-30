@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react';
 import { orderAPI, productAPI } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import Loading from '../components/Loading';
 
 const Orders = () => {
+  const toast = useToast();
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ const Orders = () => {
         }));
 
       if (payloadItems.length === 0) {
-        alert('Veuillez ajouter au moins un produit à la commande');
+        toast.warning('Veuillez ajouter au moins un produit à la commande');
         return;
       }
 
@@ -81,10 +83,11 @@ const Orders = () => {
 
       await orderAPI.create(payload);
       await loadData();
+      toast.success('Commande créée avec succès');
       handleCloseModal();
     } catch (error) {
       console.error('Erreur lors de la création:', error);
-      alert(error.response?.data?.error || 'Erreur lors de la création de la commande');
+      toast.error(error.response?.data?.error || 'Erreur lors de la création de la commande');
     }
   };
 
@@ -97,7 +100,7 @@ const Orders = () => {
         : null;
 
       if (status === 'vendu' && !priceValue) {
-        alert('Veuillez saisir le prix final');
+        toast.warning('Veuillez saisir le prix final');
         return;
       }
 
@@ -109,10 +112,11 @@ const Orders = () => {
       await loadData();
       setShowStatusModal(false);
       setSelectedOrder(null);
+      toast.success('Statut mis à jour avec succès');
       setFinalPrice('');
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
-      alert(error.response?.data?.error || 'Erreur lors de la mise à jour du statut');
+      toast.error(error.response?.data?.error || 'Erreur lors de la mise à jour du statut');
     }
   };
 

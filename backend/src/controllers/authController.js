@@ -16,6 +16,19 @@ export const register = async (req, res) => {
   const { username, email, password, role = 'vendeur' } = req.body;
 
   try {
+    // Validation des données
+    if (!username || username.length < 3) {
+      return res.status(400).json({ error: 'Le nom d\'utilisateur doit contenir au moins 3 caractères.' });
+    }
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Email invalide.' });
+    }
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' });
+    }
+
     // Vérifier si l'utilisateur existe déjà
     const userExists = await pool.query(
       'SELECT * FROM users WHERE username = $1 OR email = $2',

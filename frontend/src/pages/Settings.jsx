@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Settings as SettingsIcon } from 'lucide-react';
-import { categoryAPI } from '../services/api';
+import { Plus, Edit2, Trash2, Palette, Tag } from 'lucide-react';
+import { categoryAPI, colorAPI } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Loading from '../components/Loading';
 
 const Settings = () => {
+  const toast = useToast();
   const [categories, setCategories] = useState([]);
   const [colors, setColors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deleteType, setDeleteType] = useState(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showColorModal, setShowColorModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -29,7 +35,7 @@ const Settings = () => {
     try {
       const [categoriesRes, colorsRes] = await Promise.all([
         categoryAPI.getAll(),
-        categoryAPI.getColors()
+        colorAPI.getColors()
       ]);
       setCategories(categoriesRes.data);
       setColors(colorsRes.data);
@@ -49,33 +55,49 @@ const Settings = () => {
         await categoryAPI.create(categoryForm);
       }
       await loadData();
+      toast.success(editingCategory ? 'Catégorie modifiée avec succès' : 'Catégorie ajoutée avec succès');
       handleCloseCategoryModal();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      alert(error.response?.data?.error || 'Erreur lors de la sauvegarde');
+      toast.error(error.response?.data?.error || 'Erreur lors de la sauvegarde');
     }
   };
 
   const handleColorSubmit = async (e) => {
     e.preventDefault();
     try {
-      await categoryAPI.createColor(colorForm);
+      await colorAPI.create(colorForm);
       await loadData();
+      toast.success('Couleur ajoutée avec succès');
       handleCloseColorModal();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      alert(error.response?.data?.error || 'Erreur lors de la sauvegarde');
+      toast.error(error.response?.data?.error || 'Erreur lors de la sauvegarde');
     }
   };
 
-  const handleDeleteCategory = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) return;
+  const handleDeleteClick = (type, item) => {
+    setDeleteType(type);
+    setItemToDelete(item);
+    setShowConfirmDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete || !deleteType) return;
     try {
-      await categoryAPI.delete(id);
+      if (deleteType === 'category') {
+        await categoryAPI.delete(itemToDelete.id);
+      } else {
+        await colorAPI.delete(itemToDelete.id);
+      }
       await loadData();
+      toast.success(`${deleteType === 'category' ? 'Catégorie' : 'Couleur'} supprimée avec succès`);
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
-      alert('Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
+    } finally {
+      setItemToDelete(null);
+      setDeleteType(null);
     }
   };
 
@@ -169,7 +191,7 @@ const Settings = () => {
                   <span>Modifier</span>
                 </button>
                 <button
-                  onClick={() => handleDeleteCategory(category.id)}
+                  onClick={() => handleDeleteClick('category', category)}
                   className="btn btn-danger flex items-center justify-center"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -351,6 +373,17 @@ const Settings = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Dialog de confirmation */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        onConfirm={handleDeleteConfirm}
+        title={`Supprimer ${deleteType === 'category' ? 'la catégorie' : 'la couleur'}`}
+        message={`Êtes-vous sûr de vouloir supprimer "${itemToDelete?.name}" ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        type="danger"
+      />
     </div>
   );
 };

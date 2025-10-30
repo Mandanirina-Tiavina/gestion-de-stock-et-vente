@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
 import Layout from './components/Layout';
 import Loading from './components/Loading';
 
@@ -86,7 +87,9 @@ function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <AppRoutes />
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
       </ThemeProvider>
     </AuthProvider>
   );

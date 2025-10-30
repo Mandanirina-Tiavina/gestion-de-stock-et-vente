@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Trash2 } from 'lucide-react';
-import { accountingAPI } from '../services/api';
+import { transactionAPI } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Loading from '../components/Loading';
 
 const Accounting = () => {
+  const toast = useToast();
   const [transactions, setTransactions] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState(null);
   const [filterType, setFilterType] = useState('');
   const [formData, setFormData] = useState({
     type: 'revenu',
@@ -25,8 +30,8 @@ const Accounting = () => {
   const loadData = async () => {
     try {
       const [transactionsRes, summaryRes] = await Promise.all([
-        accountingAPI.getTransactions({ type: filterType }),
-        accountingAPI.getSummary()
+        transactionAPI.getTransactions({ type: filterType }),
+        transactionAPI.getSummary()
       ]);
       setTransactions(transactionsRes.data);
       setSummary(summaryRes.data);
@@ -40,23 +45,32 @@ const Accounting = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await accountingAPI.createTransaction(formData);
+      await transactionAPI.createTransaction(formData);
       await loadData();
+      toast.success('Transaction ajoutée avec succès');
       handleCloseModal();
     } catch (error) {
       console.error('Erreur lors de la création:', error);
-      alert('Erreur lors de l\'ajout de la transaction');
+      toast.error('Erreur lors de l\'ajout de la transaction');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette transaction ?')) return;
+  const handleDeleteClick = (transaction) => {
+    setTransactionToDelete(transaction);
+    setShowConfirmDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!transactionToDelete) return;
     try {
-      await accountingAPI.deleteTransaction(id);
+      await transactionAPI.delete(transactionToDelete.id);
       await loadData();
+      toast.success('Transaction supprimée avec succès');
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
-      alert('Erreur lors de la suppression de la transaction');
+      toast.error('Erreur lors de la suppression de la transaction');
+    } finally {
+      setTransactionToDelete(null);
     }
   };
 
@@ -225,7 +239,7 @@ const Accounting = () => {
                       })}
                     </p>
                     <button
-                      onClick={() => handleDelete(transaction.id)}
+                      onClick={() => handleDeleteClick(transaction)}
                       className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                     >
                       <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
@@ -345,6 +359,17 @@ const Accounting = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Dialog de confirmation */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer la transaction"
+        message={`Êtes-vous sûr de vouloir supprimer cette transaction de ${transactionToDelete?.amount} Ar ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        type="danger"
+      />
     </div>
   );
 };
