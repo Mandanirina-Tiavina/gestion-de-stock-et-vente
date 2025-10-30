@@ -9,9 +9,11 @@ export const getAllSales = async (req, res) => {
       SELECT 
         s.id, s.product_name, s.category_name, s.customer_name,
         s.final_price, s.sale_date,
+        p.size, p.color,
         u.username as created_by_username
       FROM sales s
       LEFT JOIN users u ON s.created_by = u.id
+      LEFT JOIN products p ON s.product_id = p.id
       WHERE s.created_by = $1
     `;
     const params = [req.user.id];

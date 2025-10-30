@@ -206,6 +206,12 @@ const Sales = () => {
                   </td>
                   <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">
                     {sale.product_name}
+                    {(sale.size || sale.color) && (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        {' - '}
+                        {[sale.size, sale.color].filter(Boolean).join(' - ')}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
                     {sale.category_name || '-'}
