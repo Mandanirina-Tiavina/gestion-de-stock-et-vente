@@ -187,7 +187,7 @@ const Settings = () => {
                   onClick={() => handleEditCategory(category)}
                   className="flex-1 btn btn-secondary flex items-center justify-center space-x-2 text-sm"
                 >
-                  <Edit className="w-4 h-4" />
+                  <Edit2 className="w-4 h-4" />
                   <span>Modifier</span>
                 </button>
                 <button
