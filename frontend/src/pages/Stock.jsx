@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Loading from '../components/Loading';
+import { formatPrice } from '../utils/formatPrice';
 
 const Stock = () => {
   const toast = useToast();
@@ -222,7 +223,7 @@ const Stock = () => {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Prix:</span>
                 <span className="font-bold text-primary-600 dark:text-primary-400">
-                  {product.price} Ar
+                  {formatPrice(product.price)}
                 </span>
               </div>
             </div>

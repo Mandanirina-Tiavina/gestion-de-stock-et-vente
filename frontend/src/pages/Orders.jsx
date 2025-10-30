@@ -4,6 +4,7 @@ import { orderAPI, productAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import Loading from '../components/Loading';
+import { formatPrice } from '../utils/formatPrice';
 
 const Orders = () => {
   const toast = useToast();
@@ -324,10 +325,10 @@ const Orders = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Prix unitaire: {item.unit_price} Ar
+                            Prix unitaire: {formatPrice(item.unit_price)}
                           </p>
                           <p className="font-semibold text-gray-900 dark:text-white">
-                            Total: {item.total_price} Ar
+                            Total: {formatPrice(item.total_price)}
                           </p>
                         </div>
                       </div>
@@ -368,13 +369,13 @@ const Orders = () => {
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <p className="text-sm text-blue-800 dark:text-blue-300">
-                      Total commande: <span className="font-bold">{order.total_amount || 0} Ar</span>
+                      Total commande: <span className="font-bold">{formatPrice(order.total_amount || 0)}</span>
                     </p>
                   </div>
                   {order.final_price && (
                     <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
                       <p className="text-sm text-green-800 dark:text-green-300">
-                        Prix final: <span className="font-bold">{order.final_price} Ar</span>
+                        Prix final: <span className="font-bold">{formatPrice(order.final_price)}</span>
                       </p>
                     </div>
                   )}
@@ -508,9 +509,9 @@ const Orders = () => {
 
                   {selectedProduct && (
                     <div className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-3 text-sm text-gray-600 dark:text-gray-300">
-                      <p>Prix catalogue: <strong>{selectedProduct.price} Ar</strong></p>
+                      <p>Prix catalogue: <strong>{formatPrice(selectedProduct.price)}</strong></p>
                       <p>Stock disponible: <strong>{selectedProduct.quantity}</strong></p>
-                      <p className="mt-2">Total pour ce produit: <strong>{total || 0} Ar</strong></p>
+                      <p className="mt-2">Total pour ce produit: <strong>{formatPrice(total || 0)}</strong></p>
                     </div>
                   )}
                 </div>
@@ -526,7 +527,7 @@ const Orders = () => {
             </button>
 
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-blue-800 dark:text-blue-300">
-              Total estimé de la commande : <strong>{computeDraftTotal} Ar</strong>
+              Total estimé de la commande : <strong>{formatPrice(computeDraftTotal)}</strong>
             </div>
           </div>
 

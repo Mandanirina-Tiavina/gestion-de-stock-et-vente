@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Package, ShoppingCart, TrendingUp, DollarSign, AlertTriangle, ArrowRight } from 'lucide-react';
 import { productAPI, orderAPI, salesAPI, accountingAPI } from '../services/api';
 import Loading from '../components/Loading';
+import { formatPrice } from '../utils/formatPrice';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -68,14 +69,14 @@ const Dashboard = () => {
     },
     {
       title: 'Ventes totales',
-      value: `${stats.totalSales.toFixed(2)} Ar`,
+      value: formatPrice(stats.totalSales),
       icon: TrendingUp,
       color: 'bg-green-500',
       link: '/ventes'
     },
     {
       title: 'Solde',
-      value: `${stats.balance.toFixed(2)} Ar`,
+      value: formatPrice(stats.balance),
       icon: DollarSign,
       color: 'bg-purple-500',
       link: '/comptabilite'
@@ -217,7 +218,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
           <h3 className="text-lg font-semibold mb-2">Revenus du mois</h3>
-          <p className="text-3xl font-bold">{stats.monthRevenue.toFixed(2)} Ar</p>
+          <p className="text-3xl font-bold">{formatPrice(stats.monthRevenue)}</p>
           <p className="text-sm opacity-90 mt-2">
             Toutes sources confondues
           </p>
@@ -225,7 +226,7 @@ const Dashboard = () => {
 
         <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
           <h3 className="text-lg font-semibold mb-2">Solde actuel</h3>
-          <p className="text-3xl font-bold">{stats.balance.toFixed(2)} Ar</p>
+          <p className="text-3xl font-bold">{formatPrice(stats.balance)}</p>
           <p className="text-sm opacity-90 mt-2">
             Revenus - Dépenses
           </p>
