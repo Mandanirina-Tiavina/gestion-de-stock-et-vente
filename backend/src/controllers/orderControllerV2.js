@@ -3,10 +3,19 @@ import pool from '../config/database.js';
 // Obtenir toutes les commandes avec leurs produits
 export const getAllOrders = async (req, res) => {
   try {
+    // Vérifier si la colonne total_amount existe
+    const columnCheck = await pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'orders' AND column_name = 'total_amount'
+    `);
+    const hasTotalAmount = columnCheck.rows.length > 0;
+
     const ordersResult = await pool.query(`
       SELECT 
         o.id, o.customer_name, o.customer_phone, o.customer_email,
-        o.delivery_address, o.delivery_date, o.status, o.final_price, o.total_amount,
+        o.delivery_address, o.delivery_date, o.status, o.final_price,
+        ${hasTotalAmount ? 'o.total_amount,' : ''}
         o.created_at, o.updated_at,
         u.username as created_by_username
       FROM orders o
@@ -26,6 +35,7 @@ export const getAllOrders = async (req, res) => {
 
       return {
         ...order,
+        total_amount: order.total_amount || 0,
         items: itemsResult.rows
       };
     }));
@@ -42,10 +52,19 @@ export const getOrderById = async (req, res) => {
   const { id } = req.params;
 
   try {
+    // Vérifier si la colonne total_amount existe
+    const columnCheck = await pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'orders' AND column_name = 'total_amount'
+    `);
+    const hasTotalAmount = columnCheck.rows.length > 0;
+
     const orderResult = await pool.query(`
       SELECT 
         o.id, o.customer_name, o.customer_phone, o.customer_email,
-        o.delivery_address, o.delivery_date, o.status, o.final_price, o.total_amount,
+        o.delivery_address, o.delivery_date, o.status, o.final_price,
+        ${hasTotalAmount ? 'o.total_amount,' : ''}
         o.created_at, o.updated_at,
         u.username as created_by_username
       FROM orders o
@@ -67,6 +86,7 @@ export const getOrderById = async (req, res) => {
 
     res.json({
       ...orderResult.rows[0],
+      total_amount: orderResult.rows[0].total_amount || 0,
       items: itemsResult.rows
     });
   } catch (error) {
