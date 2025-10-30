@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Palette, Tag } from 'lucide-react';
+import { Plus, Edit2, Trash2, Palette, Tag, Settings as SettingsIcon } from 'lucide-react';
 import { categoryAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
