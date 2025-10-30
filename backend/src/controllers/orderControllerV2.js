@@ -89,7 +89,7 @@ export const createOrder = async (req, res) => {
 
   // Normaliser la date : null si vide ou invalide
   let normalizedDeliveryDate = null;
-  if (delivery_date && delivery_date.trim() !== '') {
+  if (delivery_date && typeof delivery_date === 'string' && delivery_date.trim() !== '') {
     try {
       normalizedDeliveryDate = new Date(delivery_date);
       if (isNaN(normalizedDeliveryDate.getTime())) {
@@ -99,6 +99,8 @@ export const createOrder = async (req, res) => {
       normalizedDeliveryDate = null;
     }
   }
+
+  console.log('📅 CREATE - Delivery date received:', delivery_date, '→ normalized:', normalizedDeliveryDate);
 
   const client = await pool.connect();
 
@@ -321,7 +323,7 @@ export const updateOrder = async (req, res) => {
 
   // Normaliser la date : null si vide ou invalide
   let normalizedDeliveryDate = null;
-  if (delivery_date && delivery_date.trim() !== '') {
+  if (delivery_date && typeof delivery_date === 'string' && delivery_date.trim() !== '') {
     try {
       normalizedDeliveryDate = new Date(delivery_date);
       if (isNaN(normalizedDeliveryDate.getTime())) {
@@ -331,6 +333,8 @@ export const updateOrder = async (req, res) => {
       normalizedDeliveryDate = null;
     }
   }
+
+  console.log('📅 UPDATE - Delivery date received:', delivery_date, '→ normalized:', normalizedDeliveryDate);
 
   const client = await pool.connect();
   
