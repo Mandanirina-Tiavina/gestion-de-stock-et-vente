@@ -221,8 +221,15 @@ const Settings = () => {
           {colors.map((color) => (
             <div
               key={color.id}
-              className="p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 transition-colors"
+              className="p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 transition-colors relative group"
             >
+              <button
+                onClick={() => handleDeleteClick('color', color)}
+                className="absolute top-2 right-2 p-1 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                title="Supprimer"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
               <div className="flex flex-col items-center space-y-2">
                 <div
                   className="w-12 h-12 rounded-full border-2 border-gray-300 dark:border-gray-600"

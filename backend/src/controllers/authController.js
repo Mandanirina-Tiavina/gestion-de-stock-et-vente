@@ -1,6 +1,7 @@
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
+import { sendPasswordResetEmail } from '../services/emailService.js';
 
 // Générer un token JWT
 const generateToken = (user) => {
@@ -252,14 +253,18 @@ export const requestPasswordReset = async (req, res) => {
       [user.id, token, 'password_reset', expiresAt]
     );
 
-    // TODO: Envoyer l'email avec le lien de réinitialisation
-    // Pour l'instant, on retourne juste le token (à enlever en production)
-    console.log(`Token de réinitialisation pour ${email}: ${token}`);
-    console.log(`Lien: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`);
+    // Envoyer l'email avec le lien de réinitialisation
+    try {
+      await sendPasswordResetEmail(email, token);
+      console.log(`✅ Email de réinitialisation envoyé à ${email}`);
+    } catch (emailError) {
+      console.error('❌ Erreur lors de l\'envoi de l\'email:', emailError);
+      // On continue quand même pour ne pas révéler si l'email existe
+    }
 
     res.json({ 
       message: 'Si cet email existe, un lien de réinitialisation a été envoyé.',
-      // À enlever en production:
+      // En développement, on retourne aussi le token pour faciliter les tests
       token: process.env.NODE_ENV === 'development' ? token : undefined
     });
   } catch (error) {
