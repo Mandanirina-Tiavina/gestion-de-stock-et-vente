@@ -6,7 +6,9 @@ const createTransporter = () => {
   if (process.env.EMAIL_SERVICE === 'gmail' && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
     console.log('✅ Gmail configuré - Envoi de vrais emails');
     return nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
@@ -75,6 +77,9 @@ export const sendPasswordResetEmail = async (email, code) => {
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('❌ ERREUR envoi email:', error.message);
+    if (error.response) {
+      console.error('📨 Réponse SMTP:', error.response);
+    }
     throw error;
   }
 };
