@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, AlertTriangle } from 'lucide-react';
-import { productAPI, categoryAPI, colorAPI } from '../services/api';
+import { Plus, Search, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { productAPI, categoryAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
