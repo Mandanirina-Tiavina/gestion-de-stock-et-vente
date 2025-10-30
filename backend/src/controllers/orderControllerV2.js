@@ -287,6 +287,100 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
+// Modifier une commande (uniquement si status = 'en_cours')
+export const updateOrder = async (req, res) => {
+  const { id } = req.params;
+  const { customer_name, customer_phone, customer_email, delivery_address, delivery_date, items } = req.body;
+
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    // Vérifier que la commande existe et est en cours
+    const orderCheck = await client.query(
+      'SELECT * FROM orders WHERE id = $1 AND created_by = $2',
+      [id, req.user.id]
+    );
+
+    if (orderCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Commande non trouvée.' });
+    }
+
+    const order = orderCheck.rows[0];
+
+    if (order.status !== 'en_cours') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Seules les commandes en cours peuvent être modifiées.' });
+    }
+
+    // Supprimer les anciens items
+    await client.query('DELETE FROM order_items WHERE order_id = $1', [id]);
+
+    // Calculer le nouveau total et ajouter les nouveaux items
+    let totalAmount = 0;
+
+    for (const item of items) {
+      const productResult = await client.query(
+        'SELECT id, name, price FROM products WHERE id = $1',
+        [item.product_id]
+      );
+
+      if (productResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: `Produit avec ID ${item.product_id} non trouvé.` });
+      }
+
+      const product = productResult.rows[0];
+      const unitPrice = item.custom_price !== undefined && item.custom_price !== null 
+        ? item.custom_price 
+        : product.price;
+      const itemTotal = unitPrice * item.quantity;
+      totalAmount += itemTotal;
+
+      // Récupérer le nom de la catégorie
+      const categoryResult = await client.query(`
+        SELECT c.name as category_name
+        FROM products p
+        JOIN categories c ON p.category_id = c.id
+        WHERE p.id = $1
+      `, [item.product_id]);
+
+      const categoryName = categoryResult.rows[0]?.category_name || 'Non catégorisé';
+
+      await client.query(`
+        INSERT INTO order_items (order_id, product_id, product_name, category_name, quantity, unit_price, total_price)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [id, item.product_id, product.name, categoryName, item.quantity, unitPrice, itemTotal]);
+    }
+
+    // Mettre à jour la commande
+    const updateResult = await client.query(`
+      UPDATE orders 
+      SET customer_name = $1, customer_phone = $2, customer_email = $3,
+          delivery_address = $4, delivery_date = $5, total_amount = $6,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $7
+      RETURNING *
+    `, [customer_name, customer_phone, customer_email, delivery_address, delivery_date, totalAmount, id]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      message: 'Commande modifiée avec succès',
+      order: updateResult.rows[0]
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erreur lors de la modification de la commande:', error);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  } finally {
+    client.release();
+  }
+};
+
 // Supprimer une commande
 export const deleteOrder = async (req, res) => {
   const { id } = req.params;

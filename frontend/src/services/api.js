@@ -48,6 +48,7 @@ export const productAPI = {
 export const orderAPI = {
   getAll: () => api.get('/orders'),
   getById: (id) => api.get(`/orders/${id}`),
+  update: (id, data) => api.put(`/orders/${id}`, data),
   create: (data) => api.post('/orders', data),
   updateStatus: (id, status, finalPrice) => 
     api.patch(`/orders/${id}/status`, { status, final_price: finalPrice }),

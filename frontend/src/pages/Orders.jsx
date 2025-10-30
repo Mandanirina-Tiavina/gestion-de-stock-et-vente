@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react';
+import { Plus, Search, CheckCircle, XCircle, Clock, Trash2, Edit2 } from 'lucide-react';
 import { orderAPI, productAPI } from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import Modal from '../components/Modal';
@@ -15,6 +15,7 @@ const Orders = () => {
   const [showModal, setShowModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [editingOrder, setEditingOrder] = useState(null);
   const [finalPrice, setFinalPrice] = useState('');
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -81,13 +82,19 @@ const Orders = () => {
         items: payloadItems
       };
 
-      await orderAPI.create(payload);
+      if (editingOrder) {
+        await orderAPI.update(editingOrder.id, payload);
+        toast.success('Commande modifiée avec succès');
+      } else {
+        await orderAPI.create(payload);
+        toast.success('Commande créée avec succès');
+      }
+      
       await loadData();
-      toast.success('Commande créée avec succès');
       handleCloseModal();
     } catch (error) {
-      console.error('Erreur lors de la création:', error);
-      toast.error(error.response?.data?.error || 'Erreur lors de la création de la commande');
+      console.error('Erreur lors de la sauvegarde:', error);
+      toast.error(error.response?.data?.error || 'Erreur lors de la sauvegarde de la commande');
     }
   };
 
@@ -120,8 +127,27 @@ const Orders = () => {
     }
   };
 
+  const handleEdit = async (order) => {
+    setEditingOrder(order);
+    setFormData({
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      customer_email: order.customer_email || '',
+      delivery_address: order.delivery_address || '',
+      delivery_date: order.delivery_date ? order.delivery_date.split('T')[0] : ''
+    });
+    setOrderItems(order.items.map(item => ({
+      product_id: item.product_id.toString(),
+      quantity: item.quantity,
+      custom_price: item.unit_price
+    })));
+    await fetchProducts();
+    setShowModal(true);
+  };
+
   const handleCloseModal = () => {
     setShowModal(false);
+    setEditingOrder(null);
     setFormData({
       customer_name: '',
       customer_phone: '',
@@ -336,6 +362,18 @@ const Orders = () => {
                 </div>
               </div>
 
+              {order.status === 'en_cours' && (
+                <div className="flex md:flex-col gap-2">
+                  <button
+                    onClick={() => handleEdit(order)}
+                    className="flex-1 btn btn-secondary flex items-center justify-center space-x-2"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    <span>Modifier</span>
+                  </button>
+                </div>
+              )}
+
               {order.status === 'en_attente' && (
                 <div className="flex md:flex-col gap-2">
                   <button
@@ -371,11 +409,11 @@ const Orders = () => {
         </div>
       )}
 
-      {/* Modal de création */}
+      {/* Modal de création/modification */}
       <Modal
         isOpen={showModal}
         onClose={handleCloseModal}
-        title="Nouvelle commande"
+        title={editingOrder ? 'Modifier la commande' : 'Nouvelle commande'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-4">
@@ -532,7 +570,7 @@ const Orders = () => {
               Annuler
             </button>
             <button type="submit" className="flex-1 btn btn-primary">
-              Créer la commande
+              {editingOrder ? 'Mettre à jour' : 'Créer la commande'}
             </button>
           </div>
         </form>
