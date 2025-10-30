@@ -12,10 +12,10 @@ export const getAllSales = async (req, res) => {
         u.username as created_by_username
       FROM sales s
       LEFT JOIN users u ON s.created_by = u.id
-      WHERE 1=1
+      WHERE s.created_by = $1
     `;
-    const params = [];
-    let paramIndex = 1;
+    const params = [req.user.id];
+    let paramIndex = 2;
 
     if (start_date) {
       query += ` AND s.sale_date >= $${paramIndex}`;
@@ -57,9 +57,9 @@ export const getSalesTotal = async (req, res) => {
   const { start_date, end_date } = req.query;
 
   try {
-    let query = 'SELECT SUM(final_price) as total FROM sales WHERE 1=1';
-    const params = [];
-    let paramIndex = 1;
+    let query = 'SELECT SUM(final_price) as total FROM sales WHERE created_by = $1';
+    const params = [req.user.id];
+    let paramIndex = 2;
 
     if (start_date) {
       query += ` AND sale_date >= $${paramIndex}`;
@@ -86,21 +86,21 @@ export const getSalesTotal = async (req, res) => {
 export const getSalesStats = async (req, res) => {
   try {
     // Total des ventes
-    const totalResult = await pool.query('SELECT SUM(final_price) as total FROM sales');
+    const totalResult = await pool.query('SELECT SUM(final_price) as total FROM sales WHERE created_by = $1', [req.user.id]);
     const total = parseFloat(totalResult.rows[0].total) || 0;
 
     // Nombre de ventes
-    const countResult = await pool.query('SELECT COUNT(*) as count FROM sales');
+    const countResult = await pool.query('SELECT COUNT(*) as count FROM sales WHERE created_by = $1', [req.user.id]);
     const count = parseInt(countResult.rows[0].count) || 0;
 
     // Ventes par catégorie
     const categoryResult = await pool.query(`
       SELECT category_name, COUNT(*) as count, SUM(final_price) as total
       FROM sales
-      WHERE category_name IS NOT NULL
+      WHERE category_name IS NOT NULL AND created_by = $1
       GROUP BY category_name
       ORDER BY total DESC
-    `);
+    `, [req.user.id]);
 
     // Ventes du mois en cours
     const monthResult = await pool.query(`
@@ -108,7 +108,8 @@ export const getSalesStats = async (req, res) => {
       FROM sales
       WHERE EXTRACT(MONTH FROM sale_date) = EXTRACT(MONTH FROM CURRENT_DATE)
         AND EXTRACT(YEAR FROM sale_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `);
+        AND created_by = $1
+    `, [req.user.id]);
     const monthTotal = parseFloat(monthResult.rows[0].total) || 0;
 
     res.json({

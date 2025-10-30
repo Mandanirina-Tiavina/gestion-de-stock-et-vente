@@ -9,6 +9,7 @@
     "dev": "nodemon src/server.js",
     "migrate": "node src/config/migrate.js",
     "migrate:multi": "node src/config/migrate-multi-products.js",
+    "migrate:created-by": "node src/config/add-created-by.js",
     "reset:orders": "node src/config/reset-orders.js"
   },
   "keywords": ["stock", "ventes", "gestion"],

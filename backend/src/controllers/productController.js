@@ -12,8 +12,9 @@ export const getAllProducts = async (req, res) => {
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN colors col ON p.color_id = col.id
+      WHERE p.created_by = $1
       ORDER BY p.created_at DESC
-    `);
+    `, [req.user.id]);
 
     res.json(result.rows);
   } catch (error) {
@@ -56,10 +57,10 @@ export const createProduct = async (req, res) => {
 
   try {
     const result = await pool.query(`
-      INSERT INTO products (name, category_id, color_id, size, quantity, price, alert_threshold)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO products (name, category_id, color_id, size, quantity, price, alert_threshold, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [name, category_id, color_id, size, quantity, price, alert_threshold || 5]);
+    `, [name, category_id, color_id, size, quantity, price, alert_threshold || 5, req.user.id]);
 
     res.status(201).json({
       message: 'Produit créé avec succès',
@@ -128,9 +129,9 @@ export const getLowStockProducts = async (req, res) => {
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN colors col ON p.color_id = col.id
-      WHERE p.quantity <= p.alert_threshold
+      WHERE p.quantity <= p.alert_threshold AND p.created_by = $1
       ORDER BY p.quantity ASC
-    `);
+    `, [req.user.id]);
 
     res.json(result.rows);
   } catch (error) {

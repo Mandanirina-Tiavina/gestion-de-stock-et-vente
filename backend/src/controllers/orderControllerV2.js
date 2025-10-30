@@ -11,8 +11,9 @@ export const getAllOrders = async (req, res) => {
         u.username as created_by_username
       FROM orders o
       LEFT JOIN users u ON o.created_by = u.id
+      WHERE o.created_by = $1
       ORDER BY o.created_at DESC
-    `);
+    `, [req.user.id]);
 
     // Pour chaque commande, récupérer ses produits
     const orders = await Promise.all(ordersResult.rows.map(async (order) => {

@@ -12,10 +12,10 @@ export const getAllTransactions = async (req, res) => {
         u.username as created_by_username
       FROM transactions t
       LEFT JOIN users u ON t.created_by = u.id
-      WHERE 1=1
+      WHERE t.created_by = $1
     `;
-    const params = [];
-    let paramIndex = 1;
+    const params = [req.user.id];
+    let paramIndex = 2;
 
     if (type) {
       query += ` AND t.type = $${paramIndex}`;
@@ -90,14 +90,14 @@ export const getAccountingSummary = async (req, res) => {
   try {
     // Total des revenus
     const revenusResult = await pool.query(`
-      SELECT SUM(amount) as total FROM transactions WHERE type = 'revenu'
-    `);
+      SELECT SUM(amount) as total FROM transactions WHERE type = 'revenu' AND created_by = $1
+    `, [req.user.id]);
     const totalRevenus = parseFloat(revenusResult.rows[0].total) || 0;
 
     // Total des dépenses
     const depensesResult = await pool.query(`
-      SELECT SUM(amount) as total FROM transactions WHERE type = 'depense'
-    `);
+      SELECT SUM(amount) as total FROM transactions WHERE type = 'depense' AND created_by = $1
+    `, [req.user.id]);
     const totalDepenses = parseFloat(depensesResult.rows[0].total) || 0;
 
     // Solde net
@@ -106,19 +106,19 @@ export const getAccountingSummary = async (req, res) => {
     // Revenus du mois
     const monthRevenusResult = await pool.query(`
       SELECT SUM(amount) as total FROM transactions 
-      WHERE type = 'revenu'
+      WHERE type = 'revenu' AND created_by = $1
         AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE)
         AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `);
+    `, [req.user.id]);
     const monthRevenus = parseFloat(monthRevenusResult.rows[0].total) || 0;
 
     // Dépenses du mois
     const monthDepensesResult = await pool.query(`
       SELECT SUM(amount) as total FROM transactions 
-      WHERE type = 'depense'
+      WHERE type = 'depense' AND created_by = $1
         AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE)
         AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `);
+    `, [req.user.id]);
     const monthDepenses = parseFloat(monthDepensesResult.rows[0].total) || 0;
 
     res.json({
