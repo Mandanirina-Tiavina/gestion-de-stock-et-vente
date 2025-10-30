@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Package, ShoppingCart, TrendingUp, DollarSign } from 'lucide-react';
+import { Home, Package, ShoppingCart, TrendingUp, User } from 'lucide-react';
 
 const BottomNav = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -11,7 +11,7 @@ const BottomNav = () => {
     { to: '/stock', icon: Package, label: 'Stock' },
     { to: '/commandes', icon: ShoppingCart, label: 'Commandes' },
     { to: '/ventes', icon: TrendingUp, label: 'Ventes' },
-    { to: '/comptabilite', icon: DollarSign, label: 'Compta' }
+    { to: '/profil', icon: User, label: 'Profil' }
   ];
 
   useEffect(() => {

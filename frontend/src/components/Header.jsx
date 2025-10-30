@@ -71,14 +71,14 @@ const Header = ({ onMenuClick }) => {
 
           {/* Actions */}
           <div className="flex items-center space-x-2">
-            {/* Bouton Profil - TOUJOURS VISIBLE avec nom */}
+            {/* BOUTON PROFIL - SUPER VISIBLE */}
             <button
               onClick={() => navigate('/profil')}
-              className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors border-2 border-primary-300 dark:border-primary-700"
-              title="Mon Profil"
+              className="flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              title="Cliquez pour voir votre profil"
             >
               <User className="w-5 h-5" />
-              <span className="font-semibold text-sm">{user?.username}</span>
+              <span className="text-sm uppercase tracking-wide">{user?.username}</span>
             </button>
 
             {/* Toggle thème */}
