@@ -248,6 +248,13 @@ export const updateOrderStatus = async (req, res) => {
           fullProductName = `${item.product_name} - ${details.join(' - ')}`;
         }
         
+        console.log('📦 Produit vendu:', {
+          original: item.product_name,
+          size: item.size,
+          color: item.color,
+          fullName: fullProductName
+        });
+        
         // Ajouter dans l'historique des ventes
         await client.query(`
           INSERT INTO sales (
@@ -259,12 +266,22 @@ export const updateOrderStatus = async (req, res) => {
       }
 
       // NOUVEAU: Créer une transaction comptable pour la vente
+      console.log('💰 Création transaction comptable:', {
+        type: 'revenu',
+        category: 'Vente',
+        amount: priceToUse,
+        description: `Vente commande #${id} - ${order.customer_name}`,
+        created_by: req.user.id
+      });
+      
       await client.query(`
         INSERT INTO transactions (
           type, category, amount, description, transaction_date, created_by
         )
         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
       `, ['revenu', 'Vente', priceToUse, `Vente commande #${id} - ${order.customer_name}`, req.user.id]);
+
+      console.log('✅ Transaction comptable créée avec succès');
 
       await client.query('COMMIT');
 
