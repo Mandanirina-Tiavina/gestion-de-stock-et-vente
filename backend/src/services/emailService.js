@@ -2,26 +2,32 @@ import nodemailer from 'nodemailer';
 
 // Configuration du transporteur email
 const createTransporter = () => {
-  // Pour le développement, utilise un compte de test Ethereal
-  // Pour la production, utilise Gmail, SendGrid, Mailgun, etc.
-  
-  if (process.env.EMAIL_SERVICE === 'gmail') {
+  // Vérifier si Gmail est configuré
+  if (process.env.EMAIL_SERVICE === 'gmail' && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+    console.log('✅ Gmail configuré - Envoi de vrais emails');
     return nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD // Utilise un "App Password" pour Gmail
+        pass: process.env.EMAIL_PASSWORD
       }
     });
   }
   
-  // Par défaut, mode test (les emails ne sont pas vraiment envoyés)
+  // Mode test par défaut
+  console.log('⚠️ Gmail NON configuré - Mode test (emails non envoyés)');
+  console.log('Variables manquantes:', {
+    EMAIL_SERVICE: process.env.EMAIL_SERVICE || 'NON DÉFINI',
+    EMAIL_USER: process.env.EMAIL_USER ? 'OK' : 'MANQUANT',
+    EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? 'OK' : 'MANQUANT'
+  });
+  
   return nodemailer.createTransport({
     host: 'smtp.ethereal.email',
     port: 587,
     auth: {
-      user: process.env.EMAIL_USER || 'test@example.com',
-      pass: process.env.EMAIL_PASSWORD || 'test123'
+      user: 'test@example.com',
+      pass: 'test123'
     }
   });
 };
@@ -65,17 +71,10 @@ export const sendPasswordResetEmail = async (email, code) => {
   
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('📧 Email envoyé:', info.messageId);
-    
-    // En mode test, affiche l'URL de prévisualisation
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🔗 Prévisualiser l\'email:', nodemailer.getTestMessageUrl(info));
-      console.log('🔑 Code de réinitialisation:', code);
-    }
-    
+    console.log('✅ Email envoyé avec succès à:', email);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi de l\'email:', error);
+    console.error('❌ ERREUR envoi email:', error.message);
     throw error;
   }
 };
