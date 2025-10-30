@@ -34,15 +34,21 @@ const Sidebar = ({ isOpen, onClose }) => {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-3">
+          <button
+            onClick={() => {
+              onClose();
+              window.location.href = '/profil';
+            }}
+            className="flex items-center space-x-3 flex-1 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-lg transition-colors"
+          >
             <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">📦</span>
             </div>
-            <div>
+            <div className="text-left">
               <h2 className="font-bold text-gray-900 dark:text-white">Stock & Ventes</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{user?.username}</p>
+              <p className="text-xs text-primary-600 dark:text-primary-400 font-medium">👤 {user?.username}</p>
             </div>
-          </div>
+          </button>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
