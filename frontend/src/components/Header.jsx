@@ -70,17 +70,7 @@ const Header = ({ onMenuClick }) => {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center space-x-2">
-            {/* BOUTON PROFIL - SUPER VISIBLE ET CLIQUABLE */}
-            <button
-              onClick={() => navigate('/profil')}
-              className="flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 cursor-pointer"
-              title="👤 Cliquez ici pour voir votre profil"
-            >
-              <User className="w-5 h-5" />
-              <span className="text-sm uppercase tracking-wide">👤 {user?.username}</span>
-            </button>
-
+          <div className="flex items-center space-x-1 sm:space-x-2">
             {/* Toggle thème */}
             <button
               onClick={toggleTheme}
@@ -90,14 +80,24 @@ const Header = ({ onMenuClick }) => {
               {theme === 'dark' ? (
                 <Sun className="w-5 h-5 text-yellow-500" />
               ) : (
-                <Moon className="w-5 h-5 text-gray-600" />
+                <Moon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               )}
             </button>
 
-            {/* Déconnexion (desktop) */}
+            {/* Bouton Profil - Mobile: juste icône, Desktop: icône + nom */}
+            <button
+              onClick={() => navigate('/profil')}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
+              title="Mon profil"
+            >
+              <User className="w-5 h-5" />
+              <span className="hidden sm:inline text-sm">{user?.username}</span>
+            </button>
+
+            {/* Déconnexion (desktop uniquement) */}
             <button
               onClick={logout}
-              className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+              className="hidden md:flex items-center space-x-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span className="text-sm font-medium">Déconnexion</span>

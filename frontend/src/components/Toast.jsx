@@ -26,17 +26,17 @@ const Toast = ({ message, type = 'info', onClose, duration = 4000 }) => {
   };
 
   return (
-    <div className={`fixed top-4 right-4 z-[9999] max-w-md animate-slide-in`}>
-      <div className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg ${colors[type]}`}>
+    <div className={`fixed top-20 left-4 right-4 sm:top-4 sm:left-auto sm:right-4 z-[9999] max-w-md mx-auto sm:mx-0 animate-slide-in`}>
+      <div className={`flex items-start gap-3 p-4 rounded-lg border-2 shadow-xl backdrop-blur-sm ${colors[type]}`}>
         <div className="flex-shrink-0 mt-0.5">
           {icons[type]}
         </div>
-        <div className="flex-1 text-sm font-medium">
+        <div className="flex-1 text-sm font-medium leading-relaxed">
           {message}
         </div>
         <button
           onClick={onClose}
-          className="flex-shrink-0 p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className="flex-shrink-0 p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
           aria-label="Fermer"
         >
           <X className="w-4 h-4" />
