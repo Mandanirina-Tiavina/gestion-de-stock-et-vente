@@ -84,7 +84,7 @@ export const categoryAPI = {
 export const authAPI = {
   changePassword: (data) => api.post('/auth/change-password', data),
   requestPasswordReset: (email) => api.post('/auth/request-password-reset', { email }),
-  resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
+  resetPassword: (email, code, newPassword) => api.post('/auth/reset-password', { email, code, newPassword }),
   verifyEmail: (token) => api.post('/auth/verify-email', { token })
 };
 

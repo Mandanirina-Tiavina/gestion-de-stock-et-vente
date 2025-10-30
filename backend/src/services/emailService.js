@@ -26,33 +26,31 @@ const createTransporter = () => {
   });
 };
 
-export const sendPasswordResetEmail = async (email, token) => {
+export const sendPasswordResetEmail = async (email, code) => {
   const transporter = createTransporter();
-  
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
   
   const mailOptions = {
     from: process.env.EMAIL_FROM || '"Stock & Ventes" <noreply@stock-ventes.com>',
     to: email,
-    subject: 'Réinitialisation de votre mot de passe',
+    subject: 'Code de réinitialisation de mot de passe',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">Réinitialisation de mot de passe</h2>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2563eb; text-align: center;">Réinitialisation de mot de passe</h2>
         <p>Bonjour,</p>
         <p>Vous avez demandé à réinitialiser votre mot de passe.</p>
-        <p>Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :</p>
+        <p>Voici votre code de vérification :</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetUrl}" 
-             style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-            Réinitialiser mon mot de passe
-          </a>
+          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 10px; display: inline-block;">
+            <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #2563eb; font-family: monospace;">
+              ${code}
+            </span>
+          </div>
         </div>
-        <p style="color: #666; font-size: 14px;">
-          Ou copiez ce lien dans votre navigateur :<br>
-          <a href="${resetUrl}">${resetUrl}</a>
+        <p style="color: #666; font-size: 14px; text-align: center;">
+          Entrez ce code sur la page de réinitialisation
         </p>
-        <p style="color: #666; font-size: 14px;">
-          Ce lien expirera dans 1 heure.
+        <p style="color: #ef4444; font-size: 14px; text-align: center; font-weight: bold;">
+          ⚠️ Ce code expire dans 1 heure
         </p>
         <p style="color: #666; font-size: 14px;">
           Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email.
@@ -72,8 +70,7 @@ export const sendPasswordResetEmail = async (email, token) => {
     // En mode test, affiche l'URL de prévisualisation
     if (process.env.NODE_ENV !== 'production') {
       console.log('🔗 Prévisualiser l\'email:', nodemailer.getTestMessageUrl(info));
-      console.log('🔑 Token de réinitialisation:', token);
-      console.log('🌐 URL de réinitialisation:', resetUrl);
+      console.log('🔑 Code de réinitialisation:', code);
     }
     
     return { success: true, messageId: info.messageId };

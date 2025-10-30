@@ -165,6 +165,19 @@ const Login = () => {
                 </>
               )}
             </button>
+
+            {/* Mot de passe oublié */}
+            {isLogin && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  Mot de passe oublié ?
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>

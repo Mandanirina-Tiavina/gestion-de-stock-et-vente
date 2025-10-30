@@ -237,8 +237,8 @@ export const requestPasswordReset = async (req, res) => {
 
     const user = result.rows[0];
 
-    // Générer un token unique
-    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    // Générer un code à 6 chiffres
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 3600000); // 1 heure
 
     // Supprimer les anciens tokens de réinitialisation
@@ -247,28 +247,82 @@ export const requestPasswordReset = async (req, res) => {
       [user.id, 'password_reset']
     );
 
-    // Créer un nouveau token
+    // Créer un nouveau code
     await pool.query(
       'INSERT INTO verification_tokens (user_id, token, type, expires_at) VALUES ($1, $2, $3, $4)',
-      [user.id, token, 'password_reset', expiresAt]
+      [user.id, code, 'password_reset', expiresAt]
     );
 
-    // Envoyer l'email avec le lien de réinitialisation
+    // Envoyer l'email avec le code
     try {
-      await sendPasswordResetEmail(email, token);
+      await sendPasswordResetEmail(email, code);
       console.log(`✅ Email de réinitialisation envoyé à ${email}`);
+      console.log(`🔑 Code de réinitialisation: ${code}`);
     } catch (emailError) {
       console.error('❌ Erreur lors de l\'envoi de l\'email:', emailError);
       // On continue quand même pour ne pas révéler si l'email existe
     }
 
     res.json({ 
-      message: 'Si cet email existe, un lien de réinitialisation a été envoyé.',
-      // En développement, on retourne aussi le token pour faciliter les tests
-      token: process.env.NODE_ENV === 'development' ? token : undefined
+      message: 'Si cet email existe, un code de réinitialisation a été envoyé par email.',
+      // En développement, on retourne aussi le code pour faciliter les tests
+      code: process.env.NODE_ENV === 'development' ? code : undefined
     });
   } catch (error) {
     console.error('Erreur lors de la demande de réinitialisation:', error);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+// Réinitialiser le mot de passe avec le code
+export const resetPasswordWithCode = async (req, res) => {
+  const { email, code, newPassword } = req.body;
+
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ error: 'Email, code et nouveau mot de passe requis.' });
+  }
+
+  try {
+    // Vérifier si l'utilisateur existe
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Code invalide ou expiré.' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Vérifier le code
+    const tokenResult = await pool.query(
+      'SELECT * FROM verification_tokens WHERE user_id = $1 AND token = $2 AND type = $3 AND expires_at > NOW()',
+      [user.id, code, 'password_reset']
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Code invalide ou expiré.' });
+    }
+
+    // Hasher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Mettre à jour le mot de passe
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE id = $2',
+      [hashedPassword, user.id]
+    );
+
+    // Supprimer le code utilisé
+    await pool.query(
+      'DELETE FROM verification_tokens WHERE user_id = $1 AND type = $2',
+      [user.id, 'password_reset']
+    );
+
+    res.json({ message: 'Mot de passe réinitialisé avec succès.' });
+  } catch (error) {
+    console.error('Erreur lors de la réinitialisation:', error);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
