@@ -79,6 +79,7 @@ const Orders = () => {
 
       const payload = {
         ...formData,
+        delivery_date: formData.delivery_date ? new Date(formData.delivery_date).toISOString() : null,
         items: payloadItems
       };
 
