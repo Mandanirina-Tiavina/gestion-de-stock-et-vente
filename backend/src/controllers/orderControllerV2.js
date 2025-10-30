@@ -209,9 +209,12 @@ export const updateOrderStatus = async (req, res) => {
         return res.status(400).json({ error: 'Le prix final est requis pour marquer comme vendu.' });
       }
 
-      // Récupérer les produits de la commande
+      // Récupérer les produits de la commande avec taille et couleur
       const itemsResult = await client.query(`
-        SELECT * FROM order_items WHERE order_id = $1
+        SELECT oi.*, p.size, p.color
+        FROM order_items oi
+        LEFT JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = $1
       `, [id]);
 
       // NOUVEAU: Le stock a déjà été déduit lors de la création
@@ -236,6 +239,15 @@ export const updateOrderStatus = async (req, res) => {
           itemFinalPrice = priceToUse * proportion;
         }
         
+        // Construire le nom complet avec taille et couleur
+        let fullProductName = item.product_name;
+        if (item.size || item.color) {
+          const details = [];
+          if (item.size) details.push(item.size);
+          if (item.color) details.push(item.color);
+          fullProductName = `${item.product_name} - ${details.join(' - ')}`;
+        }
+        
         // Ajouter dans l'historique des ventes
         await client.query(`
           INSERT INTO sales (
@@ -243,7 +255,7 @@ export const updateOrderStatus = async (req, res) => {
             customer_name, final_price, created_by
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [id, item.product_id, item.product_name, item.category_name, order.customer_name, itemFinalPrice, req.user.id]);
+        `, [id, item.product_id, fullProductName, item.category_name, order.customer_name, itemFinalPrice, req.user.id]);
       }
 
       // NOUVEAU: Créer une transaction comptable pour la vente
