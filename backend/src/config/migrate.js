@@ -63,11 +63,10 @@ const createTables = async () => {
     `);
     console.log('✅ Table products créée');
 
-    // Table des commandes
+    // Table des commandes (version multi-produits)
     await client.query(`
       CREATE TABLE IF NOT EXISTS orders (
         id SERIAL PRIMARY KEY,
-        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
         customer_name VARCHAR(200) NOT NULL,
         customer_phone VARCHAR(20),
         customer_email VARCHAR(100),
@@ -75,12 +74,29 @@ const createTables = async () => {
         delivery_date TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'en_attente' CHECK (status IN ('en_attente', 'vendu', 'annule')),
         final_price DECIMAL(10, 2),
+        total_amount DECIMAL(10, 2) DEFAULT 0,
         created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('✅ Table orders créée');
+
+    // Table des items de commande (multi-produits)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+        product_name VARCHAR(200) NOT NULL,
+        category_name VARCHAR(100),
+        quantity INTEGER NOT NULL DEFAULT 1,
+        unit_price DECIMAL(10, 2) NOT NULL,
+        total_price DECIMAL(10, 2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Table order_items créée');
 
     // Table des ventes (historique)
     await client.query(`
