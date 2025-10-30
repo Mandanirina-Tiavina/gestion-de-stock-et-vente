@@ -225,7 +225,17 @@ export const updateOrderStatus = async (req, res) => {
       `, [status, priceToUse, id]);
 
       // Créer les ventes (le stock est déjà déduit)
+      // Calculer le prix de vente proportionnel pour chaque produit
+      const totalAmount = order.total_amount || 0;
+      
       for (const item of itemsResult.rows) {
+        // Calculer le prix de vente proportionnel basé sur le prix final
+        let itemFinalPrice = item.total_price;
+        if (totalAmount > 0) {
+          const proportion = item.total_price / totalAmount;
+          itemFinalPrice = priceToUse * proportion;
+        }
+        
         // Ajouter dans l'historique des ventes
         await client.query(`
           INSERT INTO sales (
@@ -233,7 +243,7 @@ export const updateOrderStatus = async (req, res) => {
             customer_name, final_price, created_by
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [id, item.product_id, item.product_name, item.category_name, order.customer_name, item.total_price, req.user.id]);
+        `, [id, item.product_id, item.product_name, item.category_name, order.customer_name, itemFinalPrice, req.user.id]);
       }
 
       await client.query('COMMIT');
