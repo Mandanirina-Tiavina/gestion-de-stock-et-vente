@@ -79,7 +79,6 @@ const Orders = () => {
 
       const payload = {
         ...formData,
-        delivery_date: formData.delivery_date || null,
         items: payloadItems
       };
 
@@ -575,12 +574,13 @@ const Orders = () => {
           </div>
 
           <div>
-            <label className="label">Date et heure de livraison (optionnel)</label>
+            <label className="label">Date et heure de livraison</label>
             <input
               type="datetime-local"
               value={formData.delivery_date}
               onChange={(e) => setFormData({ ...formData, delivery_date: e.target.value })}
               className="input"
+              required
             />
           </div>
 

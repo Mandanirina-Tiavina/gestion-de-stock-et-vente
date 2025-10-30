@@ -87,21 +87,6 @@ export const createOrder = async (req, res) => {
     delivery_date 
   } = req.body;
 
-  // Normaliser la date : null si vide ou invalide
-  let normalizedDeliveryDate = null;
-  if (delivery_date && typeof delivery_date === 'string' && delivery_date.trim() !== '') {
-    try {
-      normalizedDeliveryDate = new Date(delivery_date);
-      if (isNaN(normalizedDeliveryDate.getTime())) {
-        normalizedDeliveryDate = null;
-      }
-    } catch (e) {
-      normalizedDeliveryDate = null;
-    }
-  }
-
-  console.log('📅 CREATE - Delivery date received:', delivery_date, '→ normalized:', normalizedDeliveryDate);
-
   const client = await pool.connect();
 
   try {
@@ -135,7 +120,7 @@ export const createOrder = async (req, res) => {
       )
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [customer_name, customer_phone, customer_email, delivery_address, normalizedDeliveryDate, req.user.id]);
+    `, [customer_name, customer_phone, customer_email, delivery_address, delivery_date, req.user.id]);
 
     const orderId = orderResult.rows[0].id;
     let totalAmount = 0;
@@ -321,21 +306,6 @@ export const updateOrder = async (req, res) => {
   const { id } = req.params;
   const { customer_name, customer_phone, customer_email, delivery_address, delivery_date, items } = req.body;
 
-  // Normaliser la date : null si vide ou invalide
-  let normalizedDeliveryDate = null;
-  if (delivery_date && typeof delivery_date === 'string' && delivery_date.trim() !== '') {
-    try {
-      normalizedDeliveryDate = new Date(delivery_date);
-      if (isNaN(normalizedDeliveryDate.getTime())) {
-        normalizedDeliveryDate = null;
-      }
-    } catch (e) {
-      normalizedDeliveryDate = null;
-    }
-  }
-
-  console.log('📅 UPDATE - Delivery date received:', delivery_date, '→ normalized:', normalizedDeliveryDate);
-
   const client = await pool.connect();
   
   try {
@@ -436,7 +406,7 @@ export const updateOrder = async (req, res) => {
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $7
       RETURNING *
-    `, [customer_name, customer_phone, customer_email, delivery_address, normalizedDeliveryDate, totalAmount, id]);
+    `, [customer_name, customer_phone, customer_email, delivery_address, delivery_date, totalAmount, id]);
 
     await client.query('COMMIT');
 
