@@ -128,9 +128,13 @@ export const createOrder = async (req, res) => {
     // Ajouter les produits à la commande et déduire du stock
     for (const item of items) {
       const productResult = await client.query(`
-        SELECT p.id, p.name, p.price, p.size, p.color, c.name as category_name
+        SELECT 
+          p.id, p.name, p.price, p.size,
+          c.name as category_name,
+          col.name as color_name
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN colors col ON p.color_id = col.id
         WHERE p.id = $1
       `, [item.product_id]);
 
@@ -143,7 +147,7 @@ export const createOrder = async (req, res) => {
       let fullProductName = product.name;
       const details = [];
       if (product.size && product.size.trim() !== '') details.push(product.size);
-      if (product.color && product.color.trim() !== '') details.push(product.color);
+      if (product.color_name && product.color_name.trim() !== '') details.push(product.color_name);
       if (details.length > 0) {
         fullProductName = `${product.name} - ${details.join(' - ')}`;
       }
