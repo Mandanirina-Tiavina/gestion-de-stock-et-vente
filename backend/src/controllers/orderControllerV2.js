@@ -128,7 +128,7 @@ export const createOrder = async (req, res) => {
     // Ajouter les produits à la commande et déduire du stock
     for (const item of items) {
       const productResult = await client.query(`
-        SELECT p.id, p.name, p.price, c.name as category_name
+        SELECT p.id, p.name, p.price, p.size, p.color, c.name as category_name
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.id = $1
@@ -139,13 +139,22 @@ export const createOrder = async (req, res) => {
       const totalPrice = unitPrice * item.quantity;
       totalAmount += totalPrice;
 
+      // Construire le nom complet avec taille et couleur
+      let fullProductName = product.name;
+      if (product.size || product.color) {
+        const details = [];
+        if (product.size) details.push(product.size);
+        if (product.color) details.push(product.color);
+        fullProductName = `${product.name} - ${details.join(' - ')}`;
+      }
+
       await client.query(`
         INSERT INTO order_items (
           order_id, product_id, product_name, category_name,
           quantity, unit_price, total_price
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [orderId, product.id, product.name, product.category_name, item.quantity, unitPrice, totalPrice]);
+      `, [orderId, product.id, fullProductName, product.category_name, item.quantity, unitPrice, totalPrice]);
 
       // NOUVEAU: Déduire du stock dès la création de la commande
       await client.query(`
