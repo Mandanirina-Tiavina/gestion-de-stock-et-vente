@@ -127,19 +127,31 @@ export const createOrder = async (req, res) => {
 
     // Ajouter les produits à la commande et déduire du stock
     for (const item of items) {
-      const productResult = await client.query(`
-        SELECT p.id, p.name, p.price, p.size, p.color, c.name as category_name
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        WHERE p.id = $1
-      `, [item.product_id]);
+      // Essayer d'abord avec size et color, sinon sans
+      let productResult;
+      try {
+        productResult = await client.query(`
+          SELECT p.id, p.name, p.price, p.size, p.color, c.name as category_name
+          FROM products p
+          LEFT JOIN categories c ON p.category_id = c.id
+          WHERE p.id = $1
+        `, [item.product_id]);
+      } catch (err) {
+        // Si les colonnes size/color n'existent pas, essayer sans
+        productResult = await client.query(`
+          SELECT p.id, p.name, p.price, c.name as category_name
+          FROM products p
+          LEFT JOIN categories c ON p.category_id = c.id
+          WHERE p.id = $1
+        `, [item.product_id]);
+      }
 
       const product = productResult.rows[0];
       const unitPrice = item.custom_price || product.price;
       const totalPrice = unitPrice * item.quantity;
       totalAmount += totalPrice;
 
-      // Construire le nom complet avec taille et couleur
+      // Construire le nom complet avec taille et couleur si disponibles
       let fullProductName = product.name;
       if (product.size || product.color) {
         const details = [];
