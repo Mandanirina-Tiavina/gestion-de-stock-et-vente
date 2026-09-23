@@ -1,5 +1,5 @@
 import pool from './database.js';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 const createTables = async () => {
   const client = await pool.connect();

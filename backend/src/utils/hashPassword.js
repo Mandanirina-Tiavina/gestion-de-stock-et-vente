@@ -1,4 +1,4 @@
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 // Script pour générer le hash d'un mot de passe
 const password = process.argv[2] || 'admin123';

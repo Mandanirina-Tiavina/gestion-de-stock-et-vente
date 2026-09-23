@@ -8,7 +8,7 @@ import {
   createColor,
   deleteColor
 } from '../controllers/categoryController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -17,13 +17,13 @@ router.use(authenticateToken);
 
 // Routes catégories
 router.get('/', getAllCategories);
-router.post('/', createCategory);
-router.put('/:id', updateCategory);
-router.delete('/:id', deleteCategory);
+router.post('/', authorizeRoles('admin'), createCategory);
+router.put('/:id', authorizeRoles('admin'), updateCategory);
+router.delete('/:id', authorizeRoles('admin'), deleteCategory);
 
 // Routes couleurs
 router.get('/colors', getAllColors);
-router.post('/colors', createColor);
-router.delete('/colors/:id', deleteColor);
+router.post('/colors', authorizeRoles('admin'), createColor);
+router.delete('/colors/:id', authorizeRoles('admin'), deleteColor);
 
 export default router;

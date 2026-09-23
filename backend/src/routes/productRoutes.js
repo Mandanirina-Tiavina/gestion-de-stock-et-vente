@@ -7,7 +7,7 @@ import {
   deleteProduct,
   getLowStockProducts
 } from '../controllers/productController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -17,8 +17,8 @@ router.use(authenticateToken);
 router.get('/', getAllProducts);
 router.get('/low-stock', getLowStockProducts);
 router.get('/:id', getProductById);
-router.post('/', createProduct);
-router.put('/:id', updateProduct);
-router.delete('/:id', deleteProduct);
+router.post('/', authorizeRoles('admin', 'vendeur'), createProduct);
+router.put('/:id', authorizeRoles('admin', 'vendeur'), updateProduct);
+router.delete('/:id', authorizeRoles('admin', 'vendeur'), deleteProduct);
 
 export default router;

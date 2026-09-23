@@ -14,7 +14,8 @@ const generateToken = (user) => {
 
 // Inscription d'un nouvel utilisateur
 export const register = async (req, res) => {
-  const { username, email, password, role = 'vendeur' } = req.body;
+  const { username, email, password } = req.body;
+  const role = 'vendeur';
 
   try {
     // Validation des données
@@ -312,7 +313,7 @@ export const resetPasswordWithCode = async (req, res) => {
 
     // Mettre à jour le mot de passe
     await pool.query(
-      'UPDATE users SET password = $1 WHERE id = $2',
+      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [hashedPassword, user.id]
     );
 
