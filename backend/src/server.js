@@ -11,6 +11,7 @@ import orderRoutes from './routes/orderRoutes.js';
 import salesRoutes from './routes/salesRoutes.js';
 import accountingRoutes from './routes/accountingRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/accounting', accountingRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/users', userRoutes);
 
 // Route de test
 app.get('/api/health', (req, res) => {

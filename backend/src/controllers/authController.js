@@ -6,19 +6,22 @@ import { sendPasswordResetEmail } from '../services/emailService.js';
 // Générer un token JWT
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    { id: user.id, username: user.username, role: user.role, shopId: user.shop_id },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRE || '7d' }
   );
 };
 
-// Inscription d'un nouvel utilisateur
+// Inscription : crée une boutique + son admin
 export const register = async (req, res) => {
-  const { username, email, password } = req.body;
-  const role = 'vendeur';
+  const { shopName, username, email, password } = req.body;
+  const role = 'admin';
 
   try {
-    // Validation des données
+    if (!shopName || shopName.trim().length < 2) {
+      return res.status(400).json({ error: 'Le nom de la boutique doit contenir au moins 2 caractères.' });
+    }
+
     if (!username || username.length < 3) {
       return res.status(400).json({ error: 'Le nom d\'utilisateur doit contenir au moins 3 caractères.' });
     }
@@ -31,64 +34,119 @@ export const register = async (req, res) => {
       return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' });
     }
 
-    // Vérifier si l'utilisateur existe déjà
-    const userExists = await pool.query(
-      'SELECT * FROM users WHERE username = $1 OR email = $2',
-      [username, email]
-    );
+    const normalizedShopName = shopName.trim();
 
-    if (userExists.rows.length > 0) {
-      return res.status(400).json({ error: 'Nom d\'utilisateur ou email déjà utilisé.' });
+    const shopExists = await pool.query('SELECT id FROM shops WHERE LOWER(name) = LOWER($1)', [normalizedShopName]);
+    if (shopExists.rows.length > 0) {
+      return res.status(400).json({ error: 'Ce nom de boutique est déjà utilisé.' });
     }
 
-    // Hasher le mot de passe
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const userExists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ error: 'Cet email est déjà utilisé.' });
+    }
 
-    // Insérer le nouvel utilisateur
-    const result = await pool.query(
-      `INSERT INTO users (username, email, password_hash, role) 
-       VALUES ($1, $2, $3, $4) 
-       RETURNING id, username, email, role, created_at`,
-      [username, email, passwordHash, role]
-    );
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    const newUser = result.rows[0];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    // Créer les préférences par défaut
-    await pool.query(
-      'INSERT INTO user_preferences (user_id, theme) VALUES ($1, $2)',
-      [newUser.id, 'light']
-    );
+      const shopResult = await client.query(
+        'INSERT INTO shops (name) VALUES ($1) RETURNING id, name',
+        [normalizedShopName]
+      );
+      const shop = shopResult.rows[0];
 
-    // Générer le token
-    const token = generateToken(newUser);
+      const userResult = await client.query(
+        `INSERT INTO users (shop_id, username, email, password_hash, role)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, username, email, role, created_at`,
+        [shop.id, username, email, passwordHash, role]
+      );
+      const newUser = userResult.rows[0];
 
-    res.status(201).json({
-      message: 'Utilisateur créé avec succès',
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        role: newUser.role
-      },
-      token
-    });
+      await client.query(
+        'INSERT INTO user_preferences (user_id, theme) VALUES ($1, $2)',
+        [newUser.id, 'light']
+      );
+
+      // Catégories par défaut de la boutique
+      await client.query(`
+        INSERT INTO categories (shop_id, name, icon, color) VALUES
+          ($1, 'T-shirt', '👕', '#3B82F6'),
+          ($1, 'Pantalon', '👖', '#10B981'),
+          ($1, 'Robe', '👗', '#EC4899'),
+          ($1, 'Veste', '🧥', '#F59E0B'),
+          ($1, 'Chaussures', '👟', '#8B5CF6'),
+          ($1, 'Accessoires', '👜', '#EF4444')
+        ON CONFLICT (shop_id, name) DO NOTHING
+      `, [shop.id]);
+
+      // Couleurs par défaut de la boutique
+      await client.query(`
+        INSERT INTO colors (shop_id, name, hex_code) VALUES
+          ($1, 'Noir', '#000000'),
+          ($1, 'Blanc', '#FFFFFF'),
+          ($1, 'Rouge', '#FF0000'),
+          ($1, 'Bleu', '#0000FF'),
+          ($1, 'Vert', '#00FF00'),
+          ($1, 'Jaune', '#FFFF00'),
+          ($1, 'Rose', '#FFC0CB'),
+          ($1, 'Gris', '#808080'),
+          ($1, 'Marron', '#8B4513'),
+          ($1, 'Orange', '#FFA500')
+        ON CONFLICT (shop_id, name) DO NOTHING
+      `, [shop.id]);
+
+      await client.query('COMMIT');
+
+      const token = generateToken({ ...newUser, shop_id: shop.id });
+
+      res.status(201).json({
+        message: 'Boutique créée avec succès',
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email,
+          role: newUser.role,
+          shop_id: shop.id,
+          shop_name: shop.name
+        },
+        token
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Erreur lors de l\'inscription:', error);
     res.status(500).json({ error: 'Erreur serveur lors de l\'inscription.' });
   }
 };
 
-// Connexion
+// Connexion : boutique + nom d'utilisateur + mot de passe
 export const login = async (req, res) => {
-  const { username, password } = req.body;
+  const { shopName, username, password } = req.body;
 
   try {
-    // Vérifier si l'utilisateur existe
+    if (!shopName || !username || !password) {
+      return res.status(400).json({ error: 'Nom de boutique, nom d\'utilisateur et mot de passe requis.' });
+    }
+
+    const shopResult = await pool.query('SELECT id, name FROM shops WHERE LOWER(name) = LOWER($1)', [shopName.trim()]);
+
+    if (shopResult.rows.length === 0) {
+      return res.status(401).json({ error: 'Identifiants incorrects.' });
+    }
+
+    const shop = shopResult.rows[0];
+
     const result = await pool.query(
-      'SELECT * FROM users WHERE username = $1',
-      [username]
+      'SELECT * FROM users WHERE shop_id = $1 AND username = $2',
+      [shop.id, username]
     );
 
     if (result.rows.length === 0) {
@@ -97,14 +155,12 @@ export const login = async (req, res) => {
 
     const user = result.rows[0];
 
-    // Vérifier le mot de passe
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Identifiants incorrects.' });
     }
 
-    // Récupérer les préférences utilisateur
     const prefsResult = await pool.query(
       'SELECT theme FROM user_preferences WHERE user_id = $1',
       [user.id]
@@ -112,8 +168,7 @@ export const login = async (req, res) => {
 
     const theme = prefsResult.rows[0]?.theme || 'light';
 
-    // Générer le token
-    const token = generateToken(user);
+    const token = generateToken({ ...user, shop_id: shop.id });
 
     res.json({
       message: 'Connexion réussie',
@@ -122,7 +177,9 @@ export const login = async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
-        theme
+        theme,
+        shop_id: shop.id,
+        shop_name: shop.name
       },
       token
     });
@@ -136,8 +193,10 @@ export const login = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.username, u.email, u.role, u.created_at, up.theme
+      `SELECT u.id, u.username, u.email, u.role, u.created_at, u.shop_id,
+              s.name as shop_name, up.theme
        FROM users u
+       JOIN shops s ON u.shop_id = s.id
        LEFT JOIN user_preferences up ON u.id = up.user_id
        WHERE u.id = $1`,
       [req.user.id]
