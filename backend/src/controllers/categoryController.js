@@ -3,7 +3,10 @@ import pool from '../config/database.js';
 // Obtenir toutes les catégories
 export const getAllCategories = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM categories ORDER BY name ASC');
+    const result = await pool.query(
+      'SELECT * FROM categories WHERE shop_id = $1 ORDER BY name ASC',
+      [req.user.shopId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error('Erreur lors de la récupération des catégories:', error);
@@ -17,8 +20,8 @@ export const createCategory = async (req, res) => {
 
   try {
     const result = await pool.query(
-      'INSERT INTO categories (name, icon, color) VALUES ($1, $2, $3) RETURNING *',
-      [name, icon, color]
+      'INSERT INTO categories (shop_id, name, icon, color) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.user.shopId, name, icon, color]
     );
 
     res.status(201).json({
@@ -26,7 +29,7 @@ export const createCategory = async (req, res) => {
       category: result.rows[0]
     });
   } catch (error) {
-    if (error.code === '23505') { // Unique violation
+    if (error.code === '23505') {
       return res.status(400).json({ error: 'Cette catégorie existe déjà.' });
     }
     console.error('Erreur lors de la création de la catégorie:', error);
@@ -41,8 +44,8 @@ export const updateCategory = async (req, res) => {
 
   try {
     const result = await pool.query(
-      'UPDATE categories SET name = $1, icon = $2, color = $3 WHERE id = $4 RETURNING *',
-      [name, icon, color, id]
+      'UPDATE categories SET name = $1, icon = $2, color = $3 WHERE id = $4 AND shop_id = $5 RETURNING *',
+      [name, icon, color, id, req.user.shopId]
     );
 
     if (result.rows.length === 0) {
@@ -54,6 +57,9 @@ export const updateCategory = async (req, res) => {
       category: result.rows[0]
     });
   } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Cette catégorie existe déjà.' });
+    }
     console.error('Erreur lors de la mise à jour de la catégorie:', error);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
@@ -64,7 +70,10 @@ export const deleteCategory = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await pool.query('DELETE FROM categories WHERE id = $1 RETURNING *', [id]);
+    const result = await pool.query(
+      'DELETE FROM categories WHERE id = $1 AND shop_id = $2 RETURNING *',
+      [id, req.user.shopId]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Catégorie non trouvée.' });
@@ -80,7 +89,10 @@ export const deleteCategory = async (req, res) => {
 // Obtenir toutes les couleurs
 export const getAllColors = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM colors ORDER BY name ASC');
+    const result = await pool.query(
+      'SELECT * FROM colors WHERE shop_id = $1 ORDER BY name ASC',
+      [req.user.shopId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error('Erreur lors de la récupération des couleurs:', error);
@@ -94,8 +106,8 @@ export const createColor = async (req, res) => {
 
   try {
     const result = await pool.query(
-      'INSERT INTO colors (name, hex_code) VALUES ($1, $2) RETURNING *',
-      [name, hex_code]
+      'INSERT INTO colors (shop_id, name, hex_code) VALUES ($1, $2, $3) RETURNING *',
+      [req.user.shopId, name, hex_code]
     );
 
     res.status(201).json({
@@ -117,8 +129,8 @@ export const deleteColor = async (req, res) => {
 
   try {
     const result = await pool.query(
-      'DELETE FROM colors WHERE id = $1 RETURNING *',
-      [id]
+      'DELETE FROM colors WHERE id = $1 AND shop_id = $2 RETURNING *',
+      [id, req.user.shopId]
     );
 
     if (result.rows.length === 0) {

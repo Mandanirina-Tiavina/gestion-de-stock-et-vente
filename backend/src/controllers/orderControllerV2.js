@@ -11,11 +11,10 @@ export const getAllOrders = async (req, res) => {
         u.username as created_by_username
       FROM orders o
       LEFT JOIN users u ON o.created_by = u.id
-      WHERE o.created_by = $1
+      WHERE o.shop_id = $1
       ORDER BY o.created_at DESC
-    `, [req.user.id]);
+    `, [req.user.shopId]);
 
-    // Pour chaque commande, récupérer ses produits
     const orders = await Promise.all(ordersResult.rows.map(async (order) => {
       const itemsResult = await pool.query(`
         SELECT 
@@ -51,8 +50,8 @@ export const getOrderById = async (req, res) => {
         u.username as created_by_username
       FROM orders o
       LEFT JOIN users u ON o.created_by = u.id
-      WHERE o.id = $1
-    `, [id]);
+      WHERE o.id = $1 AND o.shop_id = $2
+    `, [id, req.user.shopId]);
 
     if (orderResult.rows.length === 0) {
       return res.status(404).json({ error: 'Commande non trouvée.' });
@@ -79,7 +78,7 @@ export const getOrderById = async (req, res) => {
 // Créer une nouvelle commande multi-produits
 export const createOrder = async (req, res) => {
   const { 
-    items, // Array of { product_id, custom_price, quantity }
+    items,
     customer_name, 
     customer_phone, 
     customer_email,
@@ -87,16 +86,19 @@ export const createOrder = async (req, res) => {
     delivery_date 
   } = req.body;
 
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'La commande doit contenir au moins un produit.' });
+  }
+
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Vérifier que tous les produits existent et ont du stock
     for (const item of items) {
       const productCheck = await client.query(
-        'SELECT id, name, price, quantity FROM products WHERE id = $1',
-        [item.product_id]
+        'SELECT id, name, price, quantity FROM products WHERE id = $1 AND shop_id = $2',
+        [item.product_id, req.user.shopId]
       );
 
       if (productCheck.rows.length === 0) {
@@ -112,20 +114,18 @@ export const createOrder = async (req, res) => {
       }
     }
 
-    // Créer la commande
     const orderResult = await client.query(`
       INSERT INTO orders (
-        customer_name, customer_phone, customer_email,
+        shop_id, customer_name, customer_phone, customer_email,
         delivery_address, delivery_date, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [customer_name, customer_phone, customer_email, delivery_address, delivery_date, req.user.id]);
+    `, [req.user.shopId, customer_name, customer_phone, customer_email, delivery_address, delivery_date, req.user.id]);
 
     const orderId = orderResult.rows[0].id;
     let totalAmount = 0;
 
-    // Ajouter les produits à la commande et déduire du stock
     for (const item of items) {
       const productResult = await client.query(`
         SELECT 
@@ -135,15 +135,14 @@ export const createOrder = async (req, res) => {
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN colors col ON p.color_id = col.id
-        WHERE p.id = $1
-      `, [item.product_id]);
+        WHERE p.id = $1 AND p.shop_id = $2
+      `, [item.product_id, req.user.shopId]);
 
       const product = productResult.rows[0];
       const unitPrice = item.custom_price || product.price;
       const totalPrice = unitPrice * item.quantity;
       totalAmount += totalPrice;
 
-      // Construire le nom complet avec taille et couleur
       let fullProductName = product.name;
       const details = [];
       if (product.size && product.size.trim() !== '') details.push(product.size);
@@ -160,7 +159,6 @@ export const createOrder = async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [orderId, product.id, fullProductName, product.category_name, item.quantity, unitPrice, totalPrice]);
 
-      // NOUVEAU: Déduire du stock dès la création de la commande
       await client.query(`
         UPDATE products 
         SET quantity = quantity - $1, updated_at = CURRENT_TIMESTAMP
@@ -168,7 +166,6 @@ export const createOrder = async (req, res) => {
       `, [item.quantity, product.id]);
     }
 
-    // Mettre à jour le montant total de la commande
     await client.query(`
       UPDATE orders SET total_amount = $1 WHERE id = $2
     `, [totalAmount, orderId]);
@@ -196,15 +193,18 @@ export const updateOrderStatus = async (req, res) => {
   const { id } = req.params;
   const { status, final_price } = req.body;
 
+  if (!['en_attente', 'vendu', 'annule'].includes(status)) {
+    return res.status(400).json({ error: 'Statut invalide.' });
+  }
+
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Récupérer les informations de la commande
     const orderResult = await client.query(`
-      SELECT * FROM orders WHERE id = $1
-    `, [id]);
+      SELECT * FROM orders WHERE id = $1 AND shop_id = $2
+    `, [id, req.user.shopId]);
 
     if (orderResult.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -213,7 +213,6 @@ export const updateOrderStatus = async (req, res) => {
 
     const order = orderResult.rows[0];
 
-    // Si le statut passe à "vendu"
     if (status === 'vendu' && order.status !== 'vendu') {
       const priceToUse = final_price || order.total_amount;
 
@@ -222,70 +221,42 @@ export const updateOrderStatus = async (req, res) => {
         return res.status(400).json({ error: 'Le prix final est requis pour marquer comme vendu.' });
       }
 
-      // Récupérer les produits de la commande
       const itemsResult = await client.query(`
         SELECT oi.*
         FROM order_items oi
         WHERE oi.order_id = $1
       `, [id]);
 
-      // NOUVEAU: Le stock a déjà été déduit lors de la création
-      // On enregistre juste la vente et met à jour le prix final
-
-      // Mettre à jour la commande
       await client.query(`
         UPDATE orders 
         SET status = $1, final_price = $2, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3
-      `, [status, priceToUse, id]);
+        WHERE id = $3 AND shop_id = $4
+      `, [status, priceToUse, id, req.user.shopId]);
 
-      // Créer les ventes (le stock est déjà déduit)
-      // Calculer le prix de vente proportionnel pour chaque produit
       const totalAmount = order.total_amount || 0;
       
       for (const item of itemsResult.rows) {
-        // Calculer le prix de vente proportionnel basé sur le prix final
         let itemFinalPrice = item.total_price;
         if (totalAmount > 0) {
           const proportion = item.total_price / totalAmount;
           itemFinalPrice = priceToUse * proportion;
         }
         
-        // Le product_name contient déjà "Nom - Taille - Couleur" depuis order_items
-        console.log('📦 Produit vendu:', {
-          product_name: item.product_name,
-          category: item.category_name,
-          price: itemFinalPrice
-        });
-        
-        // Ajouter dans l'historique des ventes
         await client.query(`
           INSERT INTO sales (
-            order_id, product_id, product_name, category_name,
+            shop_id, order_id, product_id, product_name, category_name,
             customer_name, final_price, created_by
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [id, item.product_id, item.product_name, item.category_name, order.customer_name, itemFinalPrice, req.user.id]);
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [req.user.shopId, id, item.product_id, item.product_name, item.category_name, order.customer_name, itemFinalPrice, req.user.id]);
       }
 
-      // Créer une transaction comptable pour la vente
-      console.log('💰 Création transaction comptable:', {
-        type: 'revenu',
-        category: 'Vente',
-        amount: priceToUse,
-        description: `Vente commande #${id} - ${order.customer_name}`,
-        created_by: req.user.id
-      });
-      
-      const transactionResult = await client.query(`
+      await client.query(`
         INSERT INTO transactions (
-          type, category, amount, description, transaction_date, created_by
+          shop_id, type, category, amount, description, transaction_date, created_by
         )
-        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
-        RETURNING *
-      `, ['revenu', 'Vente', priceToUse, `Vente commande #${id} - ${order.customer_name}`, req.user.id]);
-
-      console.log('✅ Transaction comptable créée:', transactionResult.rows[0]);
+        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
+      `, [req.user.shopId, 'revenu', 'Vente', priceToUse, `Vente commande #${id} - ${order.customer_name}`, req.user.id]);
 
       await client.query('COMMIT');
 
@@ -296,28 +267,29 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
     
-    // Si le statut passe à "annule"
     else if (status === 'annule' && order.status !== 'annule') {
-      // Récupérer les produits de la commande
+      if (order.status === 'vendu') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Une commande déjà vendue ne peut pas être annulée.' });
+      }
+
       const itemsResult = await client.query(`
         SELECT * FROM order_items WHERE order_id = $1
       `, [id]);
 
-      // NOUVEAU: Remettre le stock (annulation = remboursement stock)
       for (const item of itemsResult.rows) {
         await client.query(`
           UPDATE products 
           SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP
-          WHERE id = $2
-        `, [item.quantity, item.product_id]);
+          WHERE id = $2 AND shop_id = $3
+        `, [item.quantity, item.product_id, req.user.shopId]);
       }
 
-      // Mettre à jour le statut
       await client.query(`
         UPDATE orders 
         SET status = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-      `, [status, id]);
+        WHERE id = $2 AND shop_id = $3
+      `, [status, id, req.user.shopId]);
 
       await client.query('COMMIT');
 
@@ -328,12 +300,11 @@ export const updateOrderStatus = async (req, res) => {
     }
     
     else {
-      // Simple mise à jour du statut
       await client.query(`
         UPDATE orders 
         SET status = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-      `, [status, id]);
+        WHERE id = $2 AND shop_id = $3
+      `, [status, id, req.user.shopId]);
 
       await client.query('COMMIT');
 
@@ -352,20 +323,23 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-// Modifier une commande (uniquement si status = 'en_cours')
+// Modifier une commande (uniquement si status = 'en_attente')
 export const updateOrder = async (req, res) => {
   const { id } = req.params;
   const { customer_name, customer_phone, customer_email, delivery_address, delivery_date, items } = req.body;
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'La commande doit contenir au moins un produit.' });
+  }
 
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
 
-    // Vérifier que la commande existe et est en cours
     const orderCheck = await client.query(
-      'SELECT * FROM orders WHERE id = $1 AND created_by = $2',
-      [id, req.user.id]
+      'SELECT * FROM orders WHERE id = $1 AND shop_id = $2',
+      [id, req.user.shopId]
     );
 
     if (orderCheck.rows.length === 0) {
@@ -375,16 +349,14 @@ export const updateOrder = async (req, res) => {
 
     const order = orderCheck.rows[0];
 
-    if (order.status !== 'en_cours' && order.status !== 'en_attente') {
+    if (order.status !== 'en_attente') {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Seules les commandes en cours ou en attente peuvent être modifiées.' });
+      return res.status(400).json({ error: 'Seules les commandes en attente peuvent être modifiées.' });
     }
 
-    // NOUVEAU: Récupérer les anciens items pour remettre le stock
     const oldItemsResult = await client.query('SELECT * FROM order_items WHERE order_id = $1', [id]);
     const oldItems = oldItemsResult.rows;
 
-    // Remettre le stock des anciens produits
     for (const oldItem of oldItems) {
       await client.query(`
         UPDATE products 
@@ -393,16 +365,14 @@ export const updateOrder = async (req, res) => {
       `, [oldItem.quantity, oldItem.product_id]);
     }
 
-    // Supprimer les anciens items
     await client.query('DELETE FROM order_items WHERE order_id = $1', [id]);
 
-    // Calculer le nouveau total et ajouter les nouveaux items
     let totalAmount = 0;
 
     for (const item of items) {
       const productResult = await client.query(
-        'SELECT id, name, price, quantity FROM products WHERE id = $1',
-        [item.product_id]
+        'SELECT id, name, price, quantity FROM products WHERE id = $1 AND shop_id = $2',
+        [item.product_id, req.user.shopId]
       );
 
       if (productResult.rows.length === 0) {
@@ -412,7 +382,6 @@ export const updateOrder = async (req, res) => {
 
       const product = productResult.rows[0];
       
-      // Vérifier le stock disponible
       if (product.quantity < item.quantity) {
         await client.query('ROLLBACK');
         return res.status(400).json({ 
@@ -426,7 +395,6 @@ export const updateOrder = async (req, res) => {
       const itemTotal = unitPrice * item.quantity;
       totalAmount += itemTotal;
 
-      // Récupérer le nom de la catégorie
       const categoryResult = await client.query(`
         SELECT c.name as category_name
         FROM products p
@@ -441,7 +409,6 @@ export const updateOrder = async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [id, item.product_id, product.name, categoryName, item.quantity, unitPrice, itemTotal]);
 
-      // NOUVEAU: Déduire le stock des nouveaux produits
       await client.query(`
         UPDATE products 
         SET quantity = quantity - $1, updated_at = CURRENT_TIMESTAMP
@@ -449,15 +416,14 @@ export const updateOrder = async (req, res) => {
       `, [item.quantity, item.product_id]);
     }
 
-    // Mettre à jour la commande
     const updateResult = await client.query(`
       UPDATE orders 
       SET customer_name = $1, customer_phone = $2, customer_email = $3,
           delivery_address = $4, delivery_date = $5, total_amount = $6,
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $7
+      WHERE id = $7 AND shop_id = $8
       RETURNING *
-    `, [customer_name, customer_phone, customer_email, delivery_address, delivery_date, totalAmount, id]);
+    `, [customer_name, customer_phone, customer_email, delivery_address, delivery_date, totalAmount, id, req.user.shopId]);
 
     await client.query('COMMIT');
 
@@ -475,20 +441,63 @@ export const updateOrder = async (req, res) => {
   }
 };
 
-// Supprimer une commande
+// Supprimer une commande (remet le stock si elle n'est pas 'vendu')
 export const deleteOrder = async (req, res) => {
   const { id } = req.params;
 
-  try {
-    const result = await pool.query('DELETE FROM orders WHERE id = $1 RETURNING *', [id]);
+  const client = await pool.connect();
 
-    if (result.rows.length === 0) {
+  try {
+    await client.query('BEGIN');
+
+    const orderResult = await client.query(
+      'SELECT * FROM orders WHERE id = $1 AND shop_id = $2',
+      [id, req.user.shopId]
+    );
+
+    if (orderResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Commande non trouvée.' });
     }
 
+    const order = orderResult.rows[0];
+
+    let itemsResult = { rows: [] };
+    if (order.status !== 'vendu') {
+      itemsResult = await client.query(
+        'SELECT * FROM order_items WHERE order_id = $1',
+        [id]
+      );
+    }
+
+    const deleteResult = await client.query(
+      'DELETE FROM orders WHERE id = $1 AND shop_id = $2 RETURNING *',
+      [id, req.user.shopId]
+    );
+
+    if (deleteResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Commande non trouvée.' });
+    }
+
+    for (const item of itemsResult.rows) {
+      if (item.product_id) {
+        await client.query(`
+          UPDATE products 
+          SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2 AND shop_id = $3
+        `, [item.quantity, item.product_id, req.user.shopId]);
+      }
+    }
+
+    await client.query('COMMIT');
+
     res.json({ message: 'Commande supprimée avec succès' });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Erreur lors de la suppression de la commande:', error);
     res.status(500).json({ error: 'Erreur serveur.' });
+  } finally {
+    client.release();
   }
 };

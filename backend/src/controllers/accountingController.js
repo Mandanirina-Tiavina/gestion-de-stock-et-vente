@@ -12,9 +12,9 @@ export const getAllTransactions = async (req, res) => {
         u.username as created_by_username
       FROM transactions t
       LEFT JOIN users u ON t.created_by = u.id
-      WHERE t.created_by = $1
+      WHERE t.shop_id = $1
     `;
-    const params = [req.user.id];
+    const params = [req.user.shopId];
     let paramIndex = 2;
 
     if (type) {
@@ -52,10 +52,10 @@ export const createTransaction = async (req, res) => {
 
   try {
     const result = await pool.query(`
-      INSERT INTO transactions (type, category, amount, description, transaction_date, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO transactions (shop_id, type, category, amount, description, transaction_date, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [type, category, amount, description, transaction_date || new Date(), req.user.id]);
+    `, [req.user.shopId, type, category, amount, description, transaction_date || new Date(), req.user.id]);
 
     res.status(201).json({
       message: 'Transaction ajoutée avec succès',
@@ -72,7 +72,10 @@ export const deleteTransaction = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await pool.query('DELETE FROM transactions WHERE id = $1 RETURNING *', [id]);
+    const result = await pool.query(
+      'DELETE FROM transactions WHERE id = $1 AND shop_id = $2 RETURNING *',
+      [id, req.user.shopId]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Transaction non trouvée.' });
@@ -88,37 +91,32 @@ export const deleteTransaction = async (req, res) => {
 // Obtenir le résumé comptable
 export const getAccountingSummary = async (req, res) => {
   try {
-    // Total des revenus
     const revenusResult = await pool.query(`
-      SELECT SUM(amount) as total FROM transactions WHERE type = 'revenu' AND created_by = $1
-    `, [req.user.id]);
+      SELECT SUM(amount) as total FROM transactions WHERE type = 'revenu' AND shop_id = $1
+    `, [req.user.shopId]);
     const totalRevenus = parseFloat(revenusResult.rows[0].total) || 0;
 
-    // Total des dépenses
     const depensesResult = await pool.query(`
-      SELECT SUM(amount) as total FROM transactions WHERE type = 'depense' AND created_by = $1
-    `, [req.user.id]);
+      SELECT SUM(amount) as total FROM transactions WHERE type = 'depense' AND shop_id = $1
+    `, [req.user.shopId]);
     const totalDepenses = parseFloat(depensesResult.rows[0].total) || 0;
 
-    // Solde net
     const solde = totalRevenus - totalDepenses;
 
-    // Revenus du mois
     const monthRevenusResult = await pool.query(`
       SELECT SUM(amount) as total FROM transactions 
-      WHERE type = 'revenu' AND created_by = $1
+      WHERE type = 'revenu' AND shop_id = $1
         AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE)
         AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `, [req.user.id]);
+    `, [req.user.shopId]);
     const monthRevenus = parseFloat(monthRevenusResult.rows[0].total) || 0;
 
-    // Dépenses du mois
     const monthDepensesResult = await pool.query(`
       SELECT SUM(amount) as total FROM transactions 
-      WHERE type = 'depense' AND created_by = $1
+      WHERE type = 'depense' AND shop_id = $1
         AND EXTRACT(MONTH FROM transaction_date) = EXTRACT(MONTH FROM CURRENT_DATE)
         AND EXTRACT(YEAR FROM transaction_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `, [req.user.id]);
+    `, [req.user.shopId]);
     const monthDepenses = parseFloat(monthDepensesResult.rows[0].total) || 0;
 
     res.json({
