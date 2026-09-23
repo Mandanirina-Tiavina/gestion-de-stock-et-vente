@@ -1,19 +1,29 @@
 import pool from './database.js';
-import bcrypt from 'bcrypt';
 
 const createTables = async () => {
   const client = await pool.connect();
-  
+
   try {
-    console.log('🚀 Début de la migration de la base de données...');
-    
+    console.log('🚀 Début de la migration multi-boutique...');
+
     await client.query('BEGIN');
+
+    // Table des boutiques
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shops (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Table shops créée');
 
     // Table des utilisateurs
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
+        shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+        username VARCHAR(50) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(20) DEFAULT 'vendeur' CHECK (role IN ('admin', 'vendeur', 'comptable')),
@@ -22,7 +32,10 @@ const createTables = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Table users créée');
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS users_shop_username ON users(shop_id, username)
+    `);
+    console.log('✅ Table users créée (username unique par boutique)');
 
     // Table des tokens de vérification et réinitialisation
     await client.query(`
@@ -37,33 +50,38 @@ const createTables = async () => {
     `);
     console.log('✅ Table verification_tokens créée');
 
-    // Table des catégories
+    // Table des catégories (par boutique)
     await client.query(`
       CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(100) UNIQUE NOT NULL,
+        shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
         icon VARCHAR(50),
         color VARCHAR(20),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(shop_id, name)
       )
     `);
-    console.log('✅ Table categories créée');
+    console.log('✅ Table categories créée (par boutique)');
 
-    // Table des couleurs disponibles
+    // Table des couleurs disponibles (par boutique)
     await client.query(`
       CREATE TABLE IF NOT EXISTS colors (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(50) UNIQUE NOT NULL,
+        shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+        name VARCHAR(50) NOT NULL,
         hex_code VARCHAR(7),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(shop_id, name)
       )
     `);
-    console.log('✅ Table colors créée');
+    console.log('✅ Table colors créée (par boutique)');
 
-    // Table des produits
+    // Table des produits (par boutique)
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
+        shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
         name VARCHAR(200) NOT NULL,
         category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
         color_id INTEGER REFERENCES colors(id) ON DELETE SET NULL,
@@ -71,16 +89,18 @@ const createTables = async () => {
         quantity INTEGER DEFAULT 0,
         price DECIMAL(10, 2) NOT NULL,
         alert_threshold INTEGER DEFAULT 5,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('✅ Table products créée');
 
-    // Table des commandes (version multi-produits)
+    // Table des commandes (multi-produits, par boutique)
     await client.query(`
       CREATE TABLE IF NOT EXISTS orders (
         id SERIAL PRIMARY KEY,
+        shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
         customer_name VARCHAR(200) NOT NULL,
         customer_phone VARCHAR(20),
         customer_email VARCHAR(100),
@@ -96,7 +116,7 @@ const createTables = async () => {
     `);
     console.log('✅ Table orders créée');
 
-    // Table des items de commande (multi-produits)
+    // Table des items de commande (hérite shop_id via orders)
     await client.query(`
       CREATE TABLE IF NOT EXISTS order_items (
         id SERIAL PRIMARY KEY,
@@ -112,10 +132,11 @@ const createTables = async () => {
     `);
     console.log('✅ Table order_items créée');
 
-    // Table des ventes (historique)
+    // Table des ventes (historique, par boutique)
     await client.query(`
       CREATE TABLE IF NOT EXISTS sales (
         id SERIAL PRIMARY KEY,
+        shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
         order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
         product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
         product_name VARCHAR(200) NOT NULL,
@@ -128,10 +149,11 @@ const createTables = async () => {
     `);
     console.log('✅ Table sales créée');
 
-    // Table des transactions comptables
+    // Table des transactions comptables (par boutique)
     await client.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
+        shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
         type VARCHAR(20) NOT NULL CHECK (type IN ('revenu', 'depense')),
         category VARCHAR(50) NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
@@ -154,50 +176,9 @@ const createTables = async () => {
     `);
     console.log('✅ Table user_preferences créée');
 
-    // Insertion de données initiales
-    
-    // Couleurs par défaut
-    await client.query(`
-      INSERT INTO colors (name, hex_code) VALUES
-        ('Noir', '#000000'),
-        ('Blanc', '#FFFFFF'),
-        ('Rouge', '#FF0000'),
-        ('Bleu', '#0000FF'),
-        ('Vert', '#00FF00'),
-        ('Jaune', '#FFFF00'),
-        ('Rose', '#FFC0CB'),
-        ('Gris', '#808080'),
-        ('Marron', '#8B4513'),
-        ('Orange', '#FFA500')
-      ON CONFLICT (name) DO NOTHING
-    `);
-    console.log('✅ Couleurs par défaut insérées');
-
-    // Catégories par défaut
-    await client.query(`
-      INSERT INTO categories (name, icon, color) VALUES
-        ('T-shirt', '👕', '#3B82F6'),
-        ('Pantalon', '👖', '#10B981'),
-        ('Robe', '👗', '#EC4899'),
-        ('Veste', '🧥', '#F59E0B'),
-        ('Chaussures', '👟', '#8B5CF6'),
-        ('Accessoires', '👜', '#EF4444')
-      ON CONFLICT (name) DO NOTHING
-    `);
-    console.log('✅ Catégories par défaut insérées');
-
-    // Utilisateur admin par défaut (password: admin123)
-    const adminPasswordHash = await bcrypt.hash('admin123', 10);
-    await client.query(`
-      INSERT INTO users (username, email, password_hash, role) VALUES
-        ('admin', 'admin@example.com', $1, 'admin')
-      ON CONFLICT (username) DO NOTHING
-    `, [adminPasswordHash]);
-    console.log('✅ Utilisateur admin créé (username: admin, password: admin123)');
-
     await client.query('COMMIT');
-    console.log('🎉 Migration terminée avec succès !');
-    
+    console.log('🎉 Migration multi-boutique terminée avec succès !');
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('❌ Erreur lors de la migration:', error);

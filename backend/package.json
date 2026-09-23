@@ -8,11 +8,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "migrate": "node src/config/migrate.js",
-    "migrate:multi": "node src/config/migrate-multi-products.js",
-    "migrate:created-by": "node src/config/add-created-by.js",
-    "reset:orders": "node src/config/reset-orders.js",
-    "reset:data": "node src/config/reset-data.js",
-    "reset:users": "node src/config/reset-users.js"
+    "reset:all": "node src/config/reset-all.js"
   },
   "keywords": [
     "stock",
@@ -23,6 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
