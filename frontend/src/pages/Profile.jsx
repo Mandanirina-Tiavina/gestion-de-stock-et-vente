@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { User, Mail, Lock, Shield, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Lock, Shield, Eye, EyeOff, Users, KeyRound, Trash2, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { authAPI } from '../services/api';
+import { authAPI, userAPI } from '../services/api';
 
 const Profile = () => {
   const { user } = useAuth();
@@ -17,6 +17,56 @@ const Profile = () => {
     newPassword: '',
     confirmPassword: ''
   });
+
+  const isAdmin = user?.role === 'admin';
+
+  // Gestion des membres (admin)
+  const [members, setMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [showMemberForm, setShowMemberForm] = useState(false);
+  const [memberForm, setMemberForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    role: 'vendeur'
+  });
+  const [resetTarget, setResetTarget] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+
+  const canDeleteMember = (member) => {
+    if (member.id === user?.id) return false;
+    if (member.role === 'admin') {
+      const adminMembers = members.filter(m => m.role === 'admin');
+      return adminMembers.length > 1;
+    }
+    return true;
+  };
+
+  const canChangeRole = (member) => {
+    if (member.id === user?.id) {
+      const adminMembers = members.filter(m => m.role === 'admin');
+      return adminMembers.length > 1;
+    }
+    return true;
+  };
+
+  const loadMembers = async () => {
+    if (!isAdmin) return;
+    setMembersLoading(true);
+    try {
+      const response = await userAPI.getAll();
+      setMembers(response.data);
+    } catch (error) {
+      console.error('Erreur lors du chargement des membres:', error);
+      toast.error('Erreur lors du chargement des membres');
+    } finally {
+      setMembersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMembers();
+  }, [isAdmin]);
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -57,9 +107,8 @@ const Profile = () => {
     try {
       const response = await authAPI.requestPasswordReset(user.email);
       
-      // En développement, afficher le token
-      if (response.data.token) {
-        console.log('🔑 Token de réinitialisation:', response.data.token);
+      if (response.data.code) {
+        console.log('🔑 Token de réinitialisation:', response.data.code);
         toast.success('Email envoyé ! En dev: vérifiez la console pour le token');
       } else {
         toast.success('Un email de réinitialisation a été envoyé à votre adresse');
@@ -69,6 +118,76 @@ const Profile = () => {
       toast.error('Erreur lors de l\'envoi de l\'email');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await userAPI.create(memberForm);
+      toast.success('Membre ajouté avec succès');
+      setMemberForm({ username: '', email: '', password: '', role: 'vendeur' });
+      setShowMemberForm(false);
+      await loadMembers();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Erreur lors de l\'ajout du membre');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetTarget || !newPassword || newPassword.length < 6) {
+      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+    setLoading(true);
+    try {
+      await userAPI.resetPassword(resetTarget.id, newPassword);
+      toast.success(`Mot de passe de ${resetTarget.username} réinitialisé`);
+      setResetTarget(null);
+      setNewPassword('');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la réinitialisation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteMember = async (member) => {
+    if (!window.confirm(`Supprimer le membre ${member.username} ?`)) return;
+    setLoading(true);
+    try {
+      await userAPI.delete(member.id);
+      toast.success('Membre supprimé');
+      await loadMembers();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la suppression');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangeRole = async (member, role) => {
+    setLoading(true);
+    try {
+      await userAPI.updateRole(member.id, role);
+      toast.success(`Rôle de ${member.username} mis à jour`);
+      await loadMembers();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la mise à jour du rôle');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const roleBadgeColor = (role) => {
+    switch (role) {
+      case 'admin': return 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400';
+      case 'comptable': return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
+      default: return 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400';
     }
   };
 
@@ -91,6 +210,18 @@ const Profile = () => {
         </h2>
         
         <div className="space-y-4">
+          {user?.shop_name && (
+            <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <Users className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Boutique</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{user?.shop_name}</p>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
               <User className="w-6 h-6 text-primary-600 dark:text-primary-400" />
@@ -122,6 +253,165 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {/* Gestion des membres (admin uniquement) */}
+      {isAdmin && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Membres de la boutique
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowMemberForm(!showMemberForm)}
+              className="btn btn-primary flex items-center space-x-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>{showMemberForm ? 'Fermer' : 'Ajouter'}</span>
+            </button>
+          </div>
+
+          {showMemberForm && (
+            <form onSubmit={handleAddMember} className="space-y-4 mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div>
+                <label className="label">Nom d'utilisateur</label>
+                <input
+                  type="text"
+                  value={memberForm.username}
+                  onChange={(e) => setMemberForm({ ...memberForm, username: e.target.value })}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Email</label>
+                <input
+                  type="email"
+                  value={memberForm.email}
+                  onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Mot de passe</label>
+                <input
+                  type="password"
+                  value={memberForm.password}
+                  onChange={(e) => setMemberForm({ ...memberForm, password: e.target.value })}
+                  className="input"
+                  placeholder="6 caractères minimum"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Rôle</label>
+                <select
+                  value={memberForm.role}
+                  onChange={(e) => setMemberForm({ ...memberForm, role: e.target.value })}
+                  className="input"
+                >
+                  <option value="vendeur">Vendeur</option>
+                  <option value="comptable">Comptable</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <button type="submit" disabled={loading} className="btn btn-primary w-full">
+                {loading ? 'Ajout...' : 'Ajouter le membre'}
+              </button>
+            </form>
+          )}
+
+          {resetTarget && (
+            <form onSubmit={handleResetPassword} className="space-y-4 mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                Réinitialiser le mot de passe de {resetTarget.username}
+              </p>
+              <div>
+                <label className="label">Nouveau mot de passe</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="input"
+                  required
+                />
+              </div>
+              <div className="flex space-x-3">
+                <button type="submit" disabled={loading} className="btn btn-primary">
+                  {loading ? 'Réinitialisation...' : 'Valider'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setResetTarget(null); setNewPassword(''); }}
+                  className="btn btn-secondary"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
+          )}
+
+          {membersLoading ? (
+            <p className="text-gray-500 dark:text-gray-400">Chargement...</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                    <th className="py-3 pr-4">Utilisateur</th>
+                    <th className="py-3 pr-4">Rôle</th>
+                    <th className="py-3 pr-4 hidden md:table-cell">Email</th>
+                    <th className="py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map((member) => (
+                    <tr key={member.id} className="border-b border-gray-100 dark:border-gray-800">
+                      <td className="py-3 pr-4 font-medium text-gray-900 dark:text-white">
+                        {member.username}{member.id === user?.id && <span className="ml-2 text-xs text-gray-500">(vous)</span>}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <select
+                          value={member.role}
+                          disabled={!canChangeRole(member)}
+                          onChange={(e) => handleChangeRole(member, e.target.value)}
+                          className={`px-2 py-1 rounded-md text-xs font-medium ${roleBadgeColor(member.role)} ${canChangeRole(member) ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                        >
+                          <option value="vendeur">Vendeur</option>
+                          <option value="comptable">Comptable</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                      <td className="py-3 pr-4 text-gray-600 dark:text-gray-400 hidden md:table-cell">
+                        {member.email}
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => { setResetTarget(member); setNewPassword(''); }}
+                          className="text-amber-600 dark:text-amber-400 hover:underline text-xs mr-4"
+                        >
+                          Réinitialiser MDP
+                        </button>
+                        {canDeleteMember(member) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMember(member)}
+                            className="text-red-600 dark:text-red-400 hover:underline text-xs"
+                          >
+                            Supprimer
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Changer le mot de passe */}
       <div className="card">
@@ -201,19 +491,6 @@ const Profile = () => {
             </button>
           </div>
         </form>
-
-        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Vous pouvez également recevoir un lien de réinitialisation par email
-          </p>
-          <button
-            onClick={handleRequestPasswordReset}
-            disabled={loading}
-            className="btn btn-secondary"
-          >
-            Envoyer un email de réinitialisation
-          </button>
-        </div>
       </div>
     </div>
   );

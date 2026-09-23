@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
+    shopName: '',
     username: '',
     email: '',
     password: ''
@@ -25,9 +26,9 @@ const Login = () => {
     try {
       let result;
       if (isLogin) {
-        result = await login(formData.username, formData.password);
+        result = await login(formData.shopName, formData.username, formData.password);
       } else {
-        result = await register(formData.username, formData.email, formData.password);
+        result = await register(formData.shopName, formData.username, formData.email, formData.password);
       }
 
       if (result.success) {
@@ -100,6 +101,19 @@ const Login = () => {
 
           {/* Formulaire */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="label">{isLogin ? 'Nom de la boutique' : 'Nom de la nouvelle boutique'}</label>
+              <input
+                type="text"
+                name="shopName"
+                value={formData.shopName}
+                onChange={handleChange}
+                className="input"
+                placeholder="Ex: Boutique Centre"
+                required
+              />
+            </div>
+
             <div>
               <label className="label">Nom d'utilisateur</label>
               <input

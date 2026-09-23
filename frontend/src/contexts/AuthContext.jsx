@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -18,17 +18,15 @@ export const AuthProvider = ({ children }) => {
 
   const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-  // Configurer axios avec le token
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      loadUser();
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    delete axios.defaults.headers.common['Authorization'];
+  }, []);
 
-  const loadUser = async () => {
+  // Charger le profil (une seule fois par token, évite les races)
+  const loadUser = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/auth/profile`);
       setUser(response.data);
@@ -38,11 +36,22 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL, logout]);
 
-  const login = async (username, password) => {
+  // Configurer axios et charger le profil une seule fois par token
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      loadUser();
+    } else {
+      setLoading(false);
+    }
+  }, [token, loadUser]);
+
+  const login = async (shopName, username, password) => {
     try {
       const response = await axios.post(`${API_URL}/auth/login`, {
+        shopName,
         username,
         password
       });
@@ -62,13 +71,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, email, password, role = 'vendeur') => {
+  const register = async (shopName, username, email, password) => {
     try {
       const response = await axios.post(`${API_URL}/auth/register`, {
+        shopName,
         username,
         email,
-        password,
-        role
+        password
       });
 
       const { token: newToken, user: userData } = response.data;
@@ -86,11 +95,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
+  const refreshUser = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/auth/profile`);
+      setUser(response.data);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Erreur lors du rechargement du profil'
+      };
+    }
   };
 
   const updatePreferences = async (theme) => {
@@ -113,6 +128,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    refreshUser,
     updatePreferences,
     isAuthenticated: !!token && !!user
   };

@@ -89,4 +89,13 @@ export const authAPI = {
   verifyEmail: (token) => api.post('/auth/verify-email', { token })
 };
 
+// API Membres de la boutique (admin)
+export const userAPI = {
+  getAll: () => api.get('/users'),
+  create: (data) => api.post('/users', data),
+  resetPassword: (id, password) => api.put(`/users/${id}/password`, { password }),
+  updateRole: (id, role) => api.put(`/users/${id}/role`, { role }),
+  delete: (id) => api.delete(`/users/${id}`)
+};
+
 export default api;
