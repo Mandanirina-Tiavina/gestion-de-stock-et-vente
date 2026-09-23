@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Package, ShoppingCart, TrendingUp, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,7 +7,7 @@ import { canAccess } from '../utils/roles';
 const BottomNav = () => {
   const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
 
   const navItems = [
     { to: '/', icon: Home, label: 'Accueil' },
@@ -20,24 +20,22 @@ const BottomNav = () => {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
+      const lastScrollY = lastScrollYRef.current;
+
       if (currentScrollY < 50) {
-        // Toujours visible en haut de page
         setIsVisible(true);
       } else if (currentScrollY > lastScrollY) {
-        // Scroll vers le bas → cacher
         setIsVisible(false);
       } else {
-        // Scroll vers le haut → afficher
         setIsVisible(true);
       }
-      
-      setLastScrollY(currentScrollY);
+
+      lastScrollYRef.current = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   return (
     <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50 transition-transform duration-300 ${

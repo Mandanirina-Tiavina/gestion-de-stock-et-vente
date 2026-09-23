@@ -99,12 +99,13 @@ const Orders = () => {
     }
   };
 
-  const handleStatusChange = async (status) => {
-    if (!selectedOrder) return;
+  const handleStatusChange = async (status, order) => {
+    const target = order || selectedOrder;
+    if (!target) return;
 
     try {
       const priceValue = status === 'vendu'
-        ? Number(finalPrice || selectedOrder?.total_amount || 0)
+        ? Number(finalPrice || target?.total_amount || 0)
         : null;
 
       if (status === 'vendu' && !priceValue) {
@@ -113,7 +114,7 @@ const Orders = () => {
       }
 
       await orderAPI.updateStatus(
-        selectedOrder.id,
+        target.id,
         status,
         priceValue
       );
@@ -382,7 +383,7 @@ const Orders = () => {
                 </div>
               </div>
 
-              {(order.status === 'en_cours' || order.status === 'en_attente') && (
+              {order.status === 'en_attente' && (
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => handleEdit(order)}
@@ -392,27 +393,20 @@ const Orders = () => {
                     <span>Modifier</span>
                   </button>
                   
-                  {order.status === 'en_attente' && (
-                    <>
-                      <button
-                        onClick={() => openStatusModal(order)}
-                        className="btn btn-success flex items-center justify-center space-x-2"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Vendu</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          handleStatusChange('annule');
-                        }}
-                        className="btn btn-danger flex items-center justify-center space-x-2"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        <span>Annuler</span>
-                      </button>
-                    </>
-                  )}
+                  <button
+                    onClick={() => openStatusModal(order)}
+                    className="btn btn-success flex items-center justify-center space-x-2"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Vendu</span>
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange('annule', order)}
+                    className="btn btn-danger flex items-center justify-center space-x-2"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Annuler</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -609,7 +603,7 @@ const Orders = () => {
       >
         <div className="space-y-4">
           <p className="text-gray-600 dark:text-gray-400">
-            Confirmez la vente de <strong>{selectedOrder?.product_name}</strong> à{' '}
+            Confirmez la vente de la commande <strong>#{selectedOrder?.id}</strong> pour{' '}
             <strong>{selectedOrder?.customer_name}</strong>
           </p>
 
@@ -626,7 +620,7 @@ const Orders = () => {
               required
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Prix suggéré: {selectedOrder?.product_price} Ar
+              Prix suggéré: {selectedOrder?.total_amount} Ar
             </p>
           </div>
 

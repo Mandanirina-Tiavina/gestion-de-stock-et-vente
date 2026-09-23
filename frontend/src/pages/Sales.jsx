@@ -113,7 +113,7 @@ const Sales = () => {
                     <div
                       className="bg-primary-600 h-2 rounded-full transition-all"
                       style={{
-                        width: `${(parseFloat(cat.total) / stats.total) * 100}%`
+                        width: `${stats.total > 0 ? (parseFloat(cat.total) / stats.total) * 100 : 0}%`
                       }}
                     />
                   </div>
