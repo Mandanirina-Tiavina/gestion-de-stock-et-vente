@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import Layout from './components/Layout';
 import Loading from './components/Loading';
+import { canAccess } from './utils/roles';
 
 // Pages
 import Login from './pages/Login';
@@ -28,6 +29,25 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+// Route protégée par rôle
+const RoleRoute = ({ to, children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <Loading fullScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!canAccess(to, user?.role)) {
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -91,8 +111,22 @@ function AppRoutes() {
           <Route path="stock" element={<Stock />} />
           <Route path="commandes" element={<Orders />} />
           <Route path="ventes" element={<Sales />} />
-          <Route path="comptabilite" element={<Accounting />} />
-          <Route path="parametres" element={<Settings />} />
+          <Route
+            path="comptabilite"
+            element={
+              <RoleRoute to="/comptabilite">
+                <Accounting />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="parametres"
+            element={
+              <RoleRoute to="/parametres">
+                <Settings />
+              </RoleRoute>
+            }
+          />
           <Route path="profil" element={<Profile />} />
         </Route>
 

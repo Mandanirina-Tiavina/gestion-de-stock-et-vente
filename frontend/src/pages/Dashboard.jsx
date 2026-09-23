@@ -4,8 +4,12 @@ import { Package, ShoppingCart, TrendingUp, DollarSign, AlertTriangle, ArrowRigh
 import { productAPI, orderAPI, salesAPI, accountingAPI } from '../services/api';
 import Loading from '../components/Loading';
 import { formatPrice } from '../utils/formatPrice';
+import { useAuth } from '../contexts/AuthContext';
+import { canAccess } from '../utils/roles';
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const canViewAccounting = canAccess('/comptabilite', user?.role);
   const [stats, setStats] = useState({
     totalProducts: 0,
     lowStockProducts: 0,
@@ -29,7 +33,7 @@ const Dashboard = () => {
         productAPI.getLowStock(),
         orderAPI.getAll(),
         salesAPI.getStats(),
-        accountingAPI.getSummary()
+        canViewAccounting ? accountingAPI.getSummary() : Promise.resolve({ data: { monthRevenus: 0, solde: 0 } })
       ]);
 
       setStats({

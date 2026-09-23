@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Package, ShoppingCart, TrendingUp, DollarSign } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { canAccess } from '../utils/roles';
 
 const BottomNav = () => {
+  const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -12,7 +15,7 @@ const BottomNav = () => {
     { to: '/commandes', icon: ShoppingCart, label: 'Commandes' },
     { to: '/ventes', icon: TrendingUp, label: 'Ventes' },
     { to: '/comptabilite', icon: DollarSign, label: 'Compta' }
-  ];
+  ].filter(item => canAccess(item.to, user?.role));
 
   useEffect(() => {
     const handleScroll = () => {

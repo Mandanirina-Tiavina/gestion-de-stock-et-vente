@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { X, Home, Package, ShoppingCart, TrendingUp, DollarSign, Settings, User, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { canAccess } from '../utils/roles';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
@@ -15,6 +16,8 @@ const Sidebar = ({ isOpen, onClose }) => {
     { to: '/parametres', icon: Settings, label: 'Paramètres' },
     { to: '/profil', icon: User, label: 'Mon Profil' }
   ];
+
+  const visibleNavItems = navItems.filter(item => canAccess(item.to, user?.role));
 
   return (
     <>
@@ -59,7 +62,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         {/* Navigation */}
         <nav className="p-4 space-y-2 pb-24">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {visibleNavItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

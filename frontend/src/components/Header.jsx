@@ -3,6 +3,7 @@ import { useLocation, NavLink, useNavigate } from 'react-router-dom';
 import { Menu, Moon, Sun, LogOut, Home, Package, ShoppingCart, TrendingUp, DollarSign, Settings, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { canAccess } from '../utils/roles';
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
@@ -17,7 +18,7 @@ const Header = ({ onMenuClick }) => {
     { to: '/ventes', icon: TrendingUp, label: 'Ventes' },
     { to: '/comptabilite', icon: DollarSign, label: 'Comptabilité' },
     { to: '/parametres', icon: Settings, label: 'Paramètres' }
-  ];
+  ].filter(item => canAccess(item.to, user?.role));
 
   const currentPage = navItems.find(item => item.to === location.pathname);
 
