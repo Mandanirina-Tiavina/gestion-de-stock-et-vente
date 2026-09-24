@@ -51,6 +51,14 @@ export const createTransaction = async (req, res) => {
   const { type, category, amount, description, transaction_date } = req.body;
 
   try {
+    if (!['revenu', 'depense'].includes(type)) {
+      return res.status(400).json({ error: 'Type de transaction invalide.' });
+    }
+
+    if (amount === undefined || amount === null || Number(amount) <= 0) {
+      return res.status(400).json({ error: 'Le montant de la transaction doit être strictement positif.' });
+    }
+
     const result = await pool.query(`
       INSERT INTO transactions (shop_id, type, category, amount, description, transaction_date, created_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7)

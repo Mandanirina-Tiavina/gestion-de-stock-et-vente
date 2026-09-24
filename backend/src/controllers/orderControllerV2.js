@@ -96,6 +96,15 @@ export const createOrder = async (req, res) => {
     await client.query('BEGIN');
 
     for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'La quantité de chaque produit doit être un entier positif.' });
+      }
+      if (item.custom_price !== undefined && item.custom_price !== null && item.custom_price < 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Le prix personnalisé ne peut pas être négatif.' });
+      }
+
       const productCheck = await client.query(
         'SELECT id, name, price, quantity FROM products WHERE id = $1 AND shop_id = $2',
         [item.product_id, req.user.shopId]
@@ -139,8 +148,8 @@ export const createOrder = async (req, res) => {
       `, [item.product_id, req.user.shopId]);
 
       const product = productResult.rows[0];
-      const unitPrice = item.custom_price || product.price;
-      const totalPrice = unitPrice * item.quantity;
+      const unitPrice = item.custom_price ?? product.price;
+      const totalPrice = Math.round(unitPrice * item.quantity * 100) / 100;
       totalAmount += totalPrice;
 
       let fullProductName = product.name;
@@ -214,6 +223,11 @@ export const updateOrderStatus = async (req, res) => {
     const order = orderResult.rows[0];
 
     if (status === 'vendu' && order.status !== 'vendu') {
+      if (final_price !== undefined && final_price !== null && Number(final_price) < 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Le prix final ne peut pas être négatif.' });
+      }
+
       const priceToUse = final_price || order.total_amount;
 
       if (!priceToUse) {
@@ -233,13 +247,25 @@ export const updateOrderStatus = async (req, res) => {
         WHERE id = $3 AND shop_id = $4
       `, [status, priceToUse, id, req.user.shopId]);
 
-      const totalAmount = order.total_amount || 0;
-      
-      for (const item of itemsResult.rows) {
-        let itemFinalPrice = item.total_price;
+      const totalAmount = Number(order.total_amount) || 0;
+      const targetPrice = Number(priceToUse);
+      const rows = itemsResult.rows;
+
+      for (let i = 0; i < rows.length; i++) {
+        const item = rows[i];
+        let itemFinalPrice;
         if (totalAmount > 0) {
-          const proportion = item.total_price / totalAmount;
-          itemFinalPrice = priceToUse * proportion;
+          const proportion = Number(item.total_price) / totalAmount;
+          itemFinalPrice = Math.round(targetPrice * proportion * 100) / 100;
+          if (i === rows.length - 1) {
+            // Ajuster la dernière ligne pour coller exactement au prix final (annule l'arrondi)
+            const allocated = rows
+              .slice(0, i)
+              .reduce((sum, r) => sum + (Math.round(targetPrice * (Number(r.total_price) / totalAmount) * 100) / 100), 0);
+            itemFinalPrice = Math.round((targetPrice - allocated) * 100) / 100;
+          }
+        } else {
+          itemFinalPrice = 0;
         }
         
         await client.query(`
@@ -354,6 +380,17 @@ export const updateOrder = async (req, res) => {
       return res.status(400).json({ error: 'Seules les commandes en attente peuvent être modifiées.' });
     }
 
+    for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'La quantité de chaque produit doit être un entier positif.' });
+      }
+      if (item.custom_price !== undefined && item.custom_price !== null && item.custom_price < 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Le prix personnalisé ne peut pas être négatif.' });
+      }
+    }
+
     const oldItemsResult = await client.query('SELECT * FROM order_items WHERE order_id = $1', [id]);
     const oldItems = oldItemsResult.rows;
 
@@ -389,10 +426,8 @@ export const updateOrder = async (req, res) => {
         });
       }
 
-      const unitPrice = item.custom_price !== undefined && item.custom_price !== null 
-        ? item.custom_price 
-        : product.price;
-      const itemTotal = unitPrice * item.quantity;
+      const unitPrice = item.custom_price ?? product.price;
+      const itemTotal = Math.round(unitPrice * item.quantity * 100) / 100;
       totalAmount += itemTotal;
 
       const categoryResult = await client.query(`
@@ -461,6 +496,11 @@ export const deleteOrder = async (req, res) => {
     }
 
     const order = orderResult.rows[0];
+
+    if (order.status === 'vendu') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Une commande déjà vendue ne peut pas être supprimée.' });
+    }
 
     let itemsResult = { rows: [] };
     if (order.status !== 'vendu') {

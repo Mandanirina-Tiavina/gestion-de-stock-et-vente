@@ -56,6 +56,14 @@ export const createProduct = async (req, res) => {
   const { name, category_id, color_id, size, quantity, price, alert_threshold } = req.body;
 
   try {
+    if (price === undefined || price === null || Number(price) < 0) {
+      return res.status(400).json({ error: 'Le prix du produit ne peut pas être négatif.' });
+    }
+
+    if (quantity === undefined || quantity === null || Number(quantity) < 0 || !Number.isInteger(Number(quantity))) {
+      return res.status(400).json({ error: 'La quantité doit être un entier positif ou nul.' });
+    }
+
     if (category_id) {
       const catCheck = await pool.query(
         'SELECT id FROM categories WHERE id = $1 AND shop_id = $2',
@@ -98,6 +106,14 @@ export const updateProduct = async (req, res) => {
   const { name, category_id, color_id, size, quantity, price, alert_threshold } = req.body;
 
   try {
+    if (price !== undefined && price !== null && Number(price) < 0) {
+      return res.status(400).json({ error: 'Le prix du produit ne peut pas être négatif.' });
+    }
+
+    if (quantity !== undefined && quantity !== null && (Number(quantity) < 0 || !Number.isInteger(Number(quantity)))) {
+      return res.status(400).json({ error: 'La quantité doit être un entier positif ou nul.' });
+    }
+
     if (category_id) {
       const catCheck = await pool.query(
         'SELECT id FROM categories WHERE id = $1 AND shop_id = $2',
