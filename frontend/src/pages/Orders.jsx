@@ -285,7 +285,7 @@ const Orders = () => {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
-                      Commande #{order.id}
+                      Commande #{order.order_number ?? order.id}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       {order.items?.length || 0} produit(s) • Créée le{' '}
@@ -614,7 +614,7 @@ const Orders = () => {
       >
         <div className="space-y-4">
           <p className="text-gray-600 dark:text-gray-400">
-            Confirmez la vente de la commande <strong>#{selectedOrder?.id}</strong> pour{' '}
+            Confirmez la vente de la commande <strong>#{selectedOrder?.order_number ?? selectedOrder?.id}</strong> pour{' '}
             <strong>{selectedOrder?.customer_name}</strong>
           </p>
 

@@ -5,7 +5,7 @@ export const getAllOrders = async (req, res) => {
   try {
     const ordersResult = await pool.query(`
       SELECT 
-        o.id, o.customer_name, o.customer_phone, o.customer_email,
+        o.id, o.order_number, o.customer_name, o.customer_phone, o.customer_email,
         o.delivery_address, o.delivery_date, o.status, o.final_price, o.total_amount,
         o.created_at, o.updated_at,
         u.username as created_by_username
@@ -44,7 +44,7 @@ export const getOrderById = async (req, res) => {
   try {
     const orderResult = await pool.query(`
       SELECT 
-        o.id, o.customer_name, o.customer_phone, o.customer_email,
+        o.id, o.order_number, o.customer_name, o.customer_phone, o.customer_email,
         o.delivery_address, o.delivery_date, o.status, o.final_price, o.total_amount,
         o.created_at, o.updated_at,
         u.username as created_by_username
