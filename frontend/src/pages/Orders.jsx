@@ -343,9 +343,11 @@ const Orders = () => {
                     <p className="font-medium text-gray-900 dark:text-white">
                       {order.customer_name}
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {order.customer_phone}
-                    </p>
+                    {order.customer_phone && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Tél : {order.customer_phone}
+                      </p>
+                    )}
                   </div>
                   {order.delivery_date && (
                     <div>
@@ -358,7 +360,7 @@ const Orders = () => {
                         })}
                       </p>
                       <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                        🕐 {new Date(order.delivery_date).toLocaleTimeString('fr-FR', {
+                        🕒 {new Date(order.delivery_date).toLocaleTimeString('fr-FR', {
                           hour: '2-digit',
                           minute: '2-digit'
                         })}
@@ -366,6 +368,15 @@ const Orders = () => {
                     </div>
                   )}
                 </div>
+
+                {(order.delivery_address || order.customer_address) && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Adresse de livraison</p>
+                    <p className="text-sm text-gray-900 dark:text-white whitespace-pre-line">
+                      {order.delivery_address || order.customer_address}
+                    </p>
+                  </div>
+                )}
 
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
