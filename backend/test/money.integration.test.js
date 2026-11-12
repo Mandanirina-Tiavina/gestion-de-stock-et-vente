@@ -352,4 +352,149 @@ describe('Intégrité des calculs d\'argent', () => {
       assert.equal(sold.status, 400);
     });
   });
+
+  // ----------------------------------------------------------------------
+  // Correctifs : stock, transitions de statut, prix à 0, dates
+  // ----------------------------------------------------------------------
+
+  describe('Cohérence du stock et des transitions de statut', () => {
+    it('supprimer une commande annulée ne restaure pas le stock une seconde fois', async () => {
+      const p = await createProduct({ name: `p-delannule-${suffix}`, price: 10, quantity: 10 });
+      const pid = p.data.product.id;
+
+      const ord = await createOrder([{ product_id: pid, quantity: 3 }]);
+      const orderId = ord.data.order.id;
+      assert.equal(Number((await getProduct(pid)).quantity), 7);
+
+      await setStatus(orderId, { status: 'annule' });
+      assert.equal(Number((await getProduct(pid)).quantity), 10);
+
+      const del = await api('DELETE', `/orders/${orderId}`, { token });
+      assert.equal(del.status, 200);
+      assert.equal(
+        Number((await getProduct(pid)).quantity),
+        10,
+        'une commande annulée a déjà rendu son stock : la suppression ne doit rien ajouter'
+      );
+    });
+
+    it('refuse de vendre une commande annulée', async () => {
+      const p = await createProduct({ name: `p-cancel-sell-${suffix}`, price: 10, quantity: 5 });
+      const pid = p.data.product.id;
+
+      const ord = await createOrder([{ product_id: pid, quantity: 2 }]);
+      const orderId = ord.data.order.id;
+
+      await setStatus(orderId, { status: 'annule' });
+      const sold = await setStatus(orderId, { status: 'vendu', final_price: 20 });
+
+      assert.equal(sold.status, 400);
+      assert.equal(Number((await getProduct(pid)).quantity), 5);
+    });
+
+    it('refuse de repasser une commande vendue en attente', async () => {
+      const p = await createProduct({ name: `p-sold-reopen-${suffix}`, price: 10, quantity: 5 });
+      const pid = p.data.product.id;
+
+      const ord = await createOrder([{ product_id: pid, quantity: 1 }]);
+      const orderId = ord.data.order.id;
+
+      await setStatus(orderId, { status: 'vendu', final_price: 10 });
+      const reopen = await setStatus(orderId, { status: 'en_attente' });
+
+      assert.equal(reopen.status, 400);
+    });
+
+    it('réactiver une commande annulée redéduit le stock', async () => {
+      const p = await createProduct({ name: `p-reactivate-${suffix}`, price: 10, quantity: 10 });
+      const pid = p.data.product.id;
+
+      const ord = await createOrder([{ product_id: pid, quantity: 3 }]);
+      const orderId = ord.data.order.id;
+
+      await setStatus(orderId, { status: 'annule' });
+      assert.equal(Number((await getProduct(pid)).quantity), 10);
+
+      const reopened = await setStatus(orderId, { status: 'en_attente' });
+      assert.equal(reopened.status, 200);
+      assert.equal(Number((await getProduct(pid)).quantity), 7);
+    });
+
+    it('deux lignes du même produit ne peuvent pas dépasser le stock', async () => {
+      const p = await createProduct({ name: `p-dupline-${suffix}`, price: 10, quantity: 5 });
+      const pid = p.data.product.id;
+
+      const ord = await createOrder([
+        { product_id: pid, quantity: 3 },
+        { product_id: pid, quantity: 3 }
+      ]);
+
+      assert.equal(ord.status, 400);
+      assert.equal(Number((await getProduct(pid)).quantity), 5);
+    });
+  });
+
+  describe('Prix final à 0 et commandes offertes', () => {
+    it('accepte une vente à 0 Ar sans créer de revenu', async () => {
+      const p = await createProduct({ name: `p-free-sale-${suffix}`, price: 100, quantity: 5 });
+      const pid = p.data.product.id;
+
+      const ord = await createOrder([{ product_id: pid, quantity: 1 }]);
+      const orderId = ord.data.order.id;
+
+      const salesBefore = round2((await getSales()).reduce((acc, s) => acc + Number(s.final_price), 0));
+      const revenueBefore = Number((await getSummary()).totalRevenus);
+
+      const sold = await setStatus(orderId, { status: 'vendu', final_price: 0 });
+      assert.equal(sold.status, 200);
+
+      const salesAfter = round2((await getSales()).reduce((acc, s) => acc + Number(s.final_price), 0));
+      const revenueAfter = Number((await getSummary()).totalRevenus);
+
+      assert.equal(round2(salesAfter - salesBefore), 0);
+      assert.equal(round2(revenueAfter - revenueBefore), 0);
+    });
+
+    it('commande à total 0 vendue à 50 : Σ ventes = revenus', async () => {
+      const p = await createProduct({ name: `p-zero-total-${suffix}`, price: 100, quantity: 5 });
+      const pid = p.data.product.id;
+
+      const ord = await createOrder([{ product_id: pid, quantity: 2, custom_price: 0 }]);
+      assert.equal(round2(Number(ord.data.order.total_amount)), 0);
+      const orderId = ord.data.order.id;
+
+      const salesBefore = round2((await getSales()).reduce((acc, s) => acc + Number(s.final_price), 0));
+      const revenueBefore = Number((await getSummary()).totalRevenus);
+
+      const sold = await setStatus(orderId, { status: 'vendu', final_price: 50 });
+      assert.equal(sold.status, 200);
+
+      const salesAfter = round2((await getSales()).reduce((acc, s) => acc + Number(s.final_price), 0));
+      const revenueAfter = Number((await getSummary()).totalRevenus);
+
+      assert.equal(round2(salesAfter - salesBefore), 50);
+      assert.equal(round2(revenueAfter - revenueBefore), 50);
+    });
+  });
+
+  describe('Filtres de date', () => {
+    it('inclut les ventes du jour avec end_date = aujourd\'hui', async () => {
+      const p = await createProduct({ name: `p-today-${suffix}`, price: 25, quantity: 5 });
+      const pid = p.data.product.id;
+
+      const ord = await createOrder([{ product_id: pid, quantity: 1 }]);
+      const orderId = ord.data.order.id;
+      await setStatus(orderId, { status: 'vendu', final_price: 25 });
+
+      const today = (await pool.query('SELECT CURRENT_DATE::text AS today')).rows[0].today;
+      const res = await api('GET', `/sales?start_date=${today}&end_date=${today}`, { token });
+
+      assert.equal(res.status, 200);
+      const total = round2(res.data.reduce((acc, s) => acc + Number(s.final_price), 0));
+      assert.ok(
+        total >= 25,
+        `le filtre doit inclure la vente du jour (total=${total}, aujourd'hui=${today})`
+      );
+    });
+  });
 });

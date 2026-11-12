@@ -9,7 +9,7 @@
     "dev": "nodemon src/server.js",
     "migrate": "node src/config/migrate.js",
     "reset:all": "node src/config/reset-all.js",
-    "test": "node --test test/money.integration.test.js"
+    "test": "node --test --test-concurrency=1 test/money.integration.test.js test/order-number.integration.test.js"
   },
   "keywords": [
     "stock",
