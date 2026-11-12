@@ -15,6 +15,7 @@ const resetAll = async () => {
       'transactions',
       'order_items',
       'orders',
+      'shop_order_counters',
       'products',
       'colors',
       'categories',
