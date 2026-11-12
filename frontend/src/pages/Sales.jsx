@@ -22,7 +22,7 @@ const Sales = () => {
     try {
       const [salesRes, statsRes] = await Promise.all([
         salesAPI.getAll(filters),
-        salesAPI.getStats()
+        salesAPI.getStats(filters)
       ]);
       setSales(salesRes.data);
       setStats(statsRes.data);
@@ -67,7 +67,7 @@ const Sales = () => {
             <TrendingUp className="w-5 h-5" />
           </div>
           <p className="text-3xl font-bold">{formatPrice(stats?.total)}</p>
-          <p className="text-sm opacity-90 mt-1">{stats?.count} vente(s)</p>
+          <p className="text-sm opacity-90 mt-1">{stats?.ordersCount} commande(s)</p>
         </div>
 
         <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
@@ -85,7 +85,7 @@ const Sales = () => {
             <TrendingUp className="w-5 h-5" />
           </div>
           <p className="text-3xl font-bold">
-            {stats?.count > 0 ? formatPrice(stats.total / stats.count) : '0 Ar'}
+            {stats?.ordersCount > 0 ? formatPrice(stats.total / stats.ordersCount) : '0 Ar'}
           </p>
           <p className="text-sm opacity-90 mt-1">Prix moyen</p>
         </div>

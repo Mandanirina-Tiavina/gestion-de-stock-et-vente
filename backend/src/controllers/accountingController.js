@@ -24,13 +24,14 @@ export const getAllTransactions = async (req, res) => {
     }
 
     if (start_date) {
-      query += ` AND t.transaction_date >= $${paramIndex}`;
+      query += ` AND t.transaction_date >= $${paramIndex}::date`;
       params.push(start_date);
       paramIndex++;
     }
 
     if (end_date) {
-      query += ` AND t.transaction_date <= $${paramIndex}`;
+      // Inclut toute la journée de fin, pas seulement minuit.
+      query += ` AND t.transaction_date < ($${paramIndex}::date + INTERVAL '1 day')`;
       params.push(end_date);
       paramIndex++;
     }

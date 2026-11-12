@@ -1,10 +1,39 @@
 import pool from '../config/database.js';
 
+// Filtres de date : la date de fin est incluse (la journée entière), ce qui
+// évite d'oublier les ventes du dernier jour quand l'UI envoie "YYYY-MM-DD".
+const appendSalesFilters = (query, filters, params) => {
+  let sql = query;
+
+  if (filters.start_date) {
+    params.push(filters.start_date);
+    sql += ` AND s.sale_date >= $${params.length}::date`;
+  }
+
+  if (filters.end_date) {
+    params.push(filters.end_date);
+    sql += ` AND s.sale_date < ($${params.length}::date + INTERVAL '1 day')`;
+  }
+
+  if (filters.product_id) {
+    params.push(filters.product_id);
+    sql += ` AND s.product_id = $${params.length}`;
+  }
+
+  if (filters.category) {
+    params.push(filters.category);
+    sql += ` AND s.category_name = $${params.length}`;
+  }
+
+  return sql;
+};
+
 // Obtenir toutes les ventes
 export const getAllSales = async (req, res) => {
   const { start_date, end_date, product_id, category } = req.query;
 
   try {
+    const params = [req.user.shopId];
     let query = `
       SELECT 
         s.id, s.product_name, s.category_name, s.customer_name,
@@ -14,33 +43,8 @@ export const getAllSales = async (req, res) => {
       LEFT JOIN users u ON s.created_by = u.id
       WHERE s.shop_id = $1
     `;
-    const params = [req.user.shopId];
-    let paramIndex = 2;
 
-    if (start_date) {
-      query += ` AND s.sale_date >= $${paramIndex}`;
-      params.push(start_date);
-      paramIndex++;
-    }
-
-    if (end_date) {
-      query += ` AND s.sale_date <= $${paramIndex}`;
-      params.push(end_date);
-      paramIndex++;
-    }
-
-    if (product_id) {
-      query += ` AND s.product_id = $${paramIndex}`;
-      params.push(product_id);
-      paramIndex++;
-    }
-
-    if (category) {
-      query += ` AND s.category_name = $${paramIndex}`;
-      params.push(category);
-      paramIndex++;
-    }
-
+    query = appendSalesFilters(query, { start_date, end_date, product_id, category }, params);
     query += ' ORDER BY s.sale_date DESC';
 
     const result = await pool.query(query, params);
@@ -57,20 +61,17 @@ export const getSalesTotal = async (req, res) => {
   const { start_date, end_date } = req.query;
 
   try {
-    let query = 'SELECT SUM(final_price) as total FROM sales WHERE shop_id = $1';
     const params = [req.user.shopId];
-    let paramIndex = 2;
+    let query = 'SELECT COALESCE(SUM(s.final_price), 0) as total FROM sales s WHERE s.shop_id = $1';
 
     if (start_date) {
-      query += ` AND sale_date >= $${paramIndex}`;
       params.push(start_date);
-      paramIndex++;
+      query += ` AND s.sale_date >= $${params.length}::date`;
     }
 
     if (end_date) {
-      query += ` AND sale_date <= $${paramIndex}`;
       params.push(end_date);
-      paramIndex++;
+      query += ` AND s.sale_date < ($${params.length}::date + INTERVAL '1 day')`;
     }
 
     const result = await pool.query(query, params);
@@ -82,31 +83,42 @@ export const getSalesTotal = async (req, res) => {
   }
 };
 
-// Obtenir les statistiques des ventes
+// Obtenir les statistiques des ventes (filtrables par période)
 export const getSalesStats = async (req, res) => {
+  const { start_date, end_date } = req.query;
+
   try {
+    const params = [req.user.shopId];
+    const where = appendSalesFilters(
+      ' WHERE s.shop_id = $1',
+      { start_date, end_date },
+      params
+    );
+
     const totalResult = await pool.query(
-      'SELECT SUM(final_price) as total FROM sales WHERE shop_id = $1',
-      [req.user.shopId]
+      `SELECT COALESCE(SUM(s.final_price), 0) as total FROM sales s${where}`,
+      params
     );
     const total = parseFloat(totalResult.rows[0].total) || 0;
 
     const countResult = await pool.query(
-      'SELECT COUNT(*) as count FROM sales WHERE shop_id = $1',
-      [req.user.shopId]
+      `SELECT COUNT(*) as count, COUNT(DISTINCT s.order_id) as orders FROM sales s${where}`,
+      params
     );
-    const count = parseInt(countResult.rows[0].count) || 0;
+    const count = parseInt(countResult.rows[0].count, 10) || 0;
+    const ordersCount = parseInt(countResult.rows[0].orders, 10) || 0;
 
     const categoryResult = await pool.query(`
-      SELECT category_name, COUNT(*) as count, SUM(final_price) as total
-      FROM sales
-      WHERE category_name IS NOT NULL AND shop_id = $1
-      GROUP BY category_name
+      SELECT s.category_name, COUNT(*) as count, SUM(s.final_price) as total
+      FROM sales s${where}
+        AND s.category_name IS NOT NULL
+      GROUP BY s.category_name
       ORDER BY total DESC
-    `, [req.user.shopId]);
+    `, params);
 
+    // Le chiffre "mois en cours" reste global, indépendant des filtres.
     const monthResult = await pool.query(`
-      SELECT SUM(final_price) as total
+      SELECT COALESCE(SUM(final_price), 0) as total
       FROM sales
       WHERE EXTRACT(MONTH FROM sale_date) = EXTRACT(MONTH FROM CURRENT_DATE)
         AND EXTRACT(YEAR FROM sale_date) = EXTRACT(YEAR FROM CURRENT_DATE)
@@ -117,6 +129,7 @@ export const getSalesStats = async (req, res) => {
     res.json({
       total,
       count,
+      ordersCount,
       monthTotal,
       byCategory: categoryResult.rows
     });

@@ -59,7 +59,7 @@ export const orderAPI = {
 export const salesAPI = {
   getAll: (params) => api.get('/sales', { params }),
   getTotal: (params) => api.get('/sales/total', { params }),
-  getStats: () => api.get('/sales/stats')
+  getStats: (params) => api.get('/sales/stats', { params })
 };
 
 // API Comptabilité
