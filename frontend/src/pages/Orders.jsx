@@ -68,7 +68,7 @@ const Orders = () => {
       const payloadItems = orderItems
         .filter(item => item.product_id)
         .map(item => ({
-          product_id: Number(item.product_id),
+          product_id: item.product_id,
           quantity: Number(item.quantity) || 1,
           custom_price: item.custom_price !== '' ? Number(item.custom_price) : undefined
         }));
@@ -104,13 +104,18 @@ const Orders = () => {
     if (!target) return;
 
     try {
-      const priceValue = status === 'vendu'
-        ? Number(finalPrice || target?.total_amount || 0)
-        : null;
+      let priceValue = null;
 
-      if (status === 'vendu' && !priceValue) {
-        toast.warning('Veuillez saisir le prix final');
-        return;
+      if (status === 'vendu') {
+        // finalPrice === '' => on retombe sur le total proposé.
+        // 0 est une valeur valide (produit offert / remise totale).
+        const rawPrice = finalPrice === '' ? target.total_amount : finalPrice;
+        priceValue = Number(rawPrice);
+
+        if (!Number.isFinite(priceValue) || priceValue < 0) {
+          toast.warning('Veuillez saisir un prix final valide');
+          return;
+        }
       }
 
       await orderAPI.updateStatus(
@@ -155,7 +160,7 @@ const Orders = () => {
       delivery_date: formattedDate
     });
     setOrderItems(order.items.map(item => ({
-      product_id: item.product_id.toString(),
+      product_id: item.product_id ? String(item.product_id) : '',
       quantity: item.quantity,
       custom_price: item.unit_price
     })));
@@ -199,7 +204,7 @@ const Orders = () => {
   const computeDraftTotal = useMemo(() => {
     return orderItems.reduce((sum, item) => {
       if (!item.product_id) return sum;
-      const product = products.find(p => p.id === Number(item.product_id));
+      const product = products.find(p => p.id === item.product_id);
       const unitPrice = item.custom_price !== ''
         ? Number(item.custom_price)
         : product?.price || 0;
@@ -444,7 +449,7 @@ const Orders = () => {
           <div className="space-y-4">
             <label className="label">Produits</label>
             {orderItems.map((item, index) => {
-              const selectedProduct = products.find(p => p.id === Number(item.product_id));
+              const selectedProduct = products.find(p => p.id === item.product_id);
               const unitPrice = item.custom_price !== ''
                 ? Number(item.custom_price)
                 : selectedProduct?.price || 0;
@@ -475,7 +480,7 @@ const Orders = () => {
                     required
                   >
                     <option value="">Sélectionner un produit</option>
-                    {products.filter(p => p.quantity > 0 || p.id === Number(item.product_id)).map(product => (
+                    {products.filter(p => p.quantity > 0 || p.id === item.product_id).map(product => (
                       <option key={product.id} value={product.id}>
                         {product.name} - {product.color_name} - {product.size} (Stock: {product.quantity})
                       </option>

@@ -37,7 +37,10 @@ const Dashboard = () => {
       ]);
 
       setStats({
-        totalProducts: products.data.length,
+        totalProducts: products.data.reduce(
+          (sum, product) => sum + (Number(product.quantity) || 0),
+          0
+        ),
         lowStockProducts: lowStock.data.length,
         pendingOrders: orders.data.filter(o => o.status === 'en_attente').length,
         totalSales: salesStats.data.total,
@@ -195,7 +198,7 @@ const Dashboard = () => {
               >
                 <div className="flex-1">
                   <p className="font-medium text-gray-900 dark:text-white text-sm">
-                    Commande #{order.id} — {order.customer_name}
+                    Commande #{order.order_number ?? order.id} — {order.customer_name}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {order.items?.length || 0} produit(s){order.delivery_date ? ' • Livraison le ' + new Date(order.delivery_date).toLocaleDateString('fr-FR') : ''}

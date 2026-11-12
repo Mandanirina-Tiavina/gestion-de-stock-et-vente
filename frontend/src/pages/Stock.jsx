@@ -117,7 +117,7 @@ const Stock = () => {
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.category_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !filterCategory || product.category_id === parseInt(filterCategory);
+    const matchesCategory = !filterCategory || product.category_id === filterCategory;
     return matchesSearch && matchesCategory;
   });
 
